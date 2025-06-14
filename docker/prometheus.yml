@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'RATi-deployment-service'
+    static_configs:
+      - targets: ['deployment-service:3032']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  - job_name: 'arlocal'
+    static_configs:
+      - targets: ['arlocal:1984']
+    scrape_interval: 30s
+    metrics_path: '/info'
+
+  - job_name: 'frontend'
+    static_configs:
+      - targets: ['frontend:80']
+    scrape_interval: 30s
+    metrics_path: '/health'

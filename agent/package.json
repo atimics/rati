@@ -1,0 +1,39 @@
+{
+  "name": "rati-ai-agent",
+  "version": "1.0.0",
+  "description": "Intelligent AI agent for the RATi decentralized digital avatar platform",
+  "main": "agent.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "node agent.js",
+    "dev": "nodemon agent.js",
+    "lint": "eslint *.js --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\""
+  },
+  "dependencies": {
+    "@permaweb/aoconnect": "^0.0.85",
+    "arweave": "^1.15.7",
+    "dotenv": "^16.4.5",
+    "openai": "^4.65.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.25.0",
+    "nodemon": "^3.1.4",
+    "prettier": "^3.0.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "arweave",
+    "ao",
+    "digital-avatar",
+    "autonomous",
+    "blockchain"
+  ],
+  "author": "RATi Community",
+  "license": "MIT"
+}

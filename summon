@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# RATi Avatar Summoning Script for CLI Container
+# This script runs inside the Docker container to summon avatars
+
+set -e
+
+echo "🔮 RATi AI Avatar Summoning (Container Mode)"
+echo "==========================================="
+echo ""
+
+# Set environment variables for container context
+export NODE_ENV=development
+export ARWEAVE_HOST=${ARWEAVE_HOST:-arlocal}
+export ARWEAVE_PORT=${ARWEAVE_PORT:-1984}
+export ARWEAVE_PROTOCOL=${ARWEAVE_PROTOCOL:-http}
+
+echo "🌐 Using Arweave endpoint: $ARWEAVE_PROTOCOL://$ARWEAVE_HOST:$ARWEAVE_PORT"
+echo ""
+
+# Check if arlocal is accessible
+echo "🔍 Checking Arweave connectivity..."
+if curl -s --max-time 10 "$ARWEAVE_PROTOCOL://$ARWEAVE_HOST:$ARWEAVE_PORT/info" > /dev/null 2>&1; then
+    echo "✅ Arweave node is accessible"
+else
+    echo "❌ Cannot connect to Arweave node at $ARWEAVE_PROTOCOL://$ARWEAVE_HOST:$ARWEAVE_PORT"
+    echo "   Make sure arlocal is running and accessible from this container"
+    exit 1
+fi
+
+# Check if wallet exists
+if [ ! -f "/app/wallets/wallet.json" ]; then
+    echo "❌ Wallet not found at /app/wallets/wallet.json"
+    echo "   Please ensure wallet is mounted in the container"
+    exit 1
+fi
+
+echo "✅ Wallet found"
+echo ""
+
+# Run the summoning process
+echo "🎭 Starting avatar summoning process..."
+
+# Check if we have a deployment script
+if [ -f "/app/scripts/deploy-genesis.js" ]; then
+    echo "🚀 Running genesis deployment..."
+    cd /app
+    node scripts/deploy-genesis.js
+elif [ -f "/app/scripts/enhanced-deploy.js" ]; then
+    echo "🚀 Running enhanced deployment..."
+    cd /app
+    node scripts/enhanced-deploy.js
+else
+    echo "🎯 Running basic agent setup..."
+    cd /app/agent
+    
+    # Install dependencies if needed
+    if [ ! -d "node_modules" ]; then
+        echo "📦 Installing agent dependencies..."
+        npm install
+    fi
+    
+    # Copy wallet if not present
+    if [ ! -f "wallet.json" ]; then
+        cp /app/wallets/wallet.json ./wallet.json
+        echo "✅ Wallet copied to agent directory"
+    fi
+    
+    # Create .env if needed
+    if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+        cp .env.example .env
+        echo "✅ Created .env from template"
+        echo "⚠️  You may need to configure API keys in agent/.env"
+    fi
+    
+    echo "🔮 Avatar summoning complete!"
+    echo ""
+    echo "Next steps:"
+    echo "1. Configure your API keys in agent/.env if needed"
+    echo "2. Run 'make run' to start the full platform"
+    echo "3. Use 'make chat' to interact with your avatar"
+fi
+
+echo ""
+echo "✨ Summoning ritual complete! ✨"

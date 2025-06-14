@@ -1,0 +1,46 @@
+{
+  "name": "rati-deployment-service",
+  "version": "1.0.0",
+  "description": "Modern deployment management service for RATi digital avatars",
+  "main": "server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "cli": "node cli.js",
+    "lint": "eslint *.js --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\""
+  },
+  "bin": {
+    "rati": "./cli.js"
+  },
+  "dependencies": {
+    "@permaweb/aoconnect": "^0.0.85",
+    "arweave": "^1.15.7",
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.25.0",
+    "nodemon": "^3.1.4",
+    "prettier": "^3.0.0"
+  },
+  "keywords": [
+    "arweave",
+    "ao",
+    "deployment",
+    "digital-avatar",
+    "blockchain",
+    "microservice"
+  ],
+  "author": "RATi Community",
+  "license": "MIT"
+}

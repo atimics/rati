@@ -1,0 +1,16 @@
+# Platform override for ARM64/Apple Silicon
+services:
+  arlocal:
+    platform: linux/amd64
+    
+  deployment-service:
+    platform: linux/amd64
+    
+  frontend:
+    platform: linux/amd64
+    
+  ai-agent:
+    platform: linux/amd64
+    
+  rati-cli:
+    platform: linux/amd64

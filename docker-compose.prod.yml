@@ -1,0 +1,50 @@
+# Production Docker Compose configuRATion
+services:
+  frontend:
+    restart: unless-stopped
+    environment:
+      - VITE_ARWEAVE_HOST=arweave.net
+      - VITE_ARWEAVE_PORT=443
+      - VITE_ARWEAVE_PROTOCOL=https
+
+  scripts:
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - ARWEAVE_HOST=arweave.net
+      - ARWEAVE_PORT=443
+      - ARWEAVE_PROTOCOL=https
+
+  arlocal:
+    # Remove ArLocal in production
+    deploy:
+      replicas: 0
+
+  # Add Traefik for SSL termination in production
+  traefik:
+    image: traefik:v2.10
+    container_name: RATi-traefik
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.email=admin@RATi.dev
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - RATi-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.RATi.dev`)"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+
+volumes:
+  letsencrypt:

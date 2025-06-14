@@ -1,0 +1,43 @@
+# RATi CLI Docker Image
+# For running deployment and management commands inside the Docker network
+
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package.json ./
+COPY agent/package.json ./agent/
+COPY deployment-service/package.json ./deployment-service/
+
+# Install dependencies
+RUN npm install
+RUN cd agent && npm install
+RUN cd deployment-service && npm install
+
+# Copy source code
+COPY . .
+
+# Copy the summon script to the expected location
+COPY summon /app/summon
+
+# Make scripts executable
+RUN chmod +x scripts/*.js || true
+RUN chmod +x *.sh || true
+RUN chmod +x /app/summon
+
+# Add summon to PATH by creating a symlink
+RUN ln -sf /app/summon /usr/local/bin/summon
+
+# Ensure PATH includes /usr/local/bin
+ENV PATH="/usr/local/bin:$PATH"
+
+# Default command is bash so we can run commands interactively
+CMD ["bash"]
