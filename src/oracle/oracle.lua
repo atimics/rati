@@ -2,7 +2,7 @@
 -- State: A list of Oracle wallet addresses and a record of proposals.
 -- Actions:
 -- 1. Ping: Anyone can submit a proposal for review.
--- 2. Bless: An authorized Oracle can ratify a proposal.
+-- 2. Ratify: An authorized Oracle can ratify a proposal.
 
 Oracles = Oracles or {} -- List of Arweave wallet addresses
 Proposals = Proposals or {} -- Table to store proposals by ID
@@ -16,7 +16,7 @@ Handlers.add(
     Proposals[proposalId] = {
       content = msg.Data,
       proposer = proposer,
-      blessings = {},
+      ratifications = {},
       status = "pending"
     }
     ao.send({
@@ -27,8 +27,8 @@ Handlers.add(
 )
 
 Handlers.add(
-  "bless",
-  Handlers.utils.hasMatchingTag("Action", "Bless"),
+  "ratify",
+  Handlers.utils.hasMatchingTag("Action", "Ratify"),
   function (msg)
     local oracleAddress = msg.owner
     local proposalId = msg.Tags.ProposalId
@@ -48,18 +48,19 @@ Handlers.add(
     end
 
     if Proposals[proposalId] then
-      Proposals[proposalId].blessings[oracleAddress] = true
+      Proposals[proposalId].ratifications = Proposals[proposalId].ratifications or {}
+      Proposals[proposalId].ratifications[oracleAddress] = true
       -- Check if quorum is met (e.g., > 50% of oracles)
-      local blessingCount = 0
-      for _ in pairs(Proposals[proposalId].blessings) do blessingCount = blessingCount + 1 end
+      local ratificationCount = 0
+      for _ in pairs(Proposals[proposalId].ratifications) do ratificationCount = ratificationCount + 1 end
 
-      if blessingCount >= (#Oracles / 2) then
-        Proposals[proposalId].status = "blessed"
-        -- Announce the blessing to the network
+      if ratificationCount >= (#Oracles / 2) then
+        Proposals[proposalId].status = "ratified"
+        -- Announce the ratification to the network
         ao.send({
           Target = ao.PROCESS, -- Broadcast to subscribers
-          Data = "Proposal " .. proposalId .. " has been blessed by the Oracle Council.",
-          Tags = { Type = "Announcement", Status = "Blessed", ProposalId = proposalId }
+          Data = "Proposal " .. proposalId .. " has been ratified by the Oracle Council.",
+          Tags = { Type = "Announcement", Status = "Ratified", ProposalId = proposalId }
         })
       end
     else

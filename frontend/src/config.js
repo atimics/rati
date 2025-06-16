@@ -5,6 +5,10 @@ const config = {
     port: parseInt(import.meta.env.VITE_ARWEAVE_PORT || '1984'),
     protocol: import.meta.env.VITE_ARWEAVE_PROTOCOL || 'http'
   },
+  // Use deployment service as proxy for Arweave requests
+  arweaveProxy: {
+    baseUrl: import.meta.env.VITE_ARWEAVE_PROXY_URL || 'http://localhost:3032'
+  },
   ao: {
     moduleId: import.meta.env.VITE_AO_MODULE_ID || 'SBNb1qPQ1TDwpD_mboxm2YllmMLXpWw4U8P9Ff8W9vk',
     schedulerId: import.meta.env.VITE_AO_SCHEDULER_ID || '_GQ33BkPtZrqxA84vM8Zk-N2aO0toNNu_C-l-rawrBA'
@@ -19,7 +23,7 @@ const config = {
     cell: import.meta.env.VITE_CELL_PROCESS_ID || 'YOUR_CELL_PROCESS_ID_HERE'
   },
   genesis: {
-    txid: import.meta.env.VITE_GENESIS_TXID || 'YOUR_GENESIS_TXID_HERE'
+    txid: import.meta.env.VITE_GENESIS_TXID || 'll4Boc3mZ7gwIPGxjF79dgu8LLLCd58zEn-ZbyYImi4'
   }
 };
 

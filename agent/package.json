@@ -18,6 +18,7 @@
     "@permaweb/aoconnect": "^0.0.85",
     "arweave": "^1.15.7",
     "dotenv": "^16.4.5",
+    "node-fetch": "^3.3.2",
     "openai": "^4.65.0"
   },
   "devDependencies": {

@@ -10,10 +10,11 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy the agent's source code and wallet into the container
+# Copy the agent's source code and dependencies into the container
 # IMPORTANT: The wallet.json must exist in the /agent directory before building!
 COPY agent.js .
 COPY wallet.json .
+COPY lib/ ./lib/
 
 # Expose no ports (this agent only makes outbound connections)
 

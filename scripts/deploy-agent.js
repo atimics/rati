@@ -1,23 +1,52 @@
 import { createDataItemSigner, message, spawn } from '@permaweb/aoconnect';
 import Arweave from 'arweave';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // This script creates a new AI agent with permanent on-chain memory
 // It spawns an AO process and creates the agent's "digital soul" on Arweave
 
-// Load environment variables
-const ARWEAVE_HOST = process.env.ARWEAVE_HOST || 'arweave.net';
-const ARWEAVE_PORT = parseInt(process.env.ARWEAVE_PORT || '443');
-const ARWEAVE_PROTOCOL = process.env.ARWEAVE_PROTOCOL || 'https';
+// Detect if we're running in Docker or locally
+const isDocker = process.env.DOCKER_ENV === 'true';
+const arweaveHost = isDocker ? 'arlocal' : (process.env.ARWEAVE_HOST || 'localhost');
+const arweavePort = parseInt(process.env.ARWEAVE_PORT || '1984');
+const arweaveProtocol = process.env.ARWEAVE_PROTOCOL || 'http';
+
+console.log(`🔗 Connecting to Arweave at ${arweaveHost}:${arweavePort}`);
 
 const arweave = Arweave.init({ 
-  host: ARWEAVE_HOST, 
-  port: ARWEAVE_PORT, 
-  protocol: ARWEAVE_PROTOCOL 
+  host: arweaveHost, 
+  port: arweavePort, 
+  protocol: arweaveProtocol 
 });
+
+// Test Arweave connection
+async function testArweaveConnection() {
+  try {
+    const info = await arweave.network.getInfo();
+    console.log('✅ Arweave connection successful');
+    console.log(`📊 Network: ${info.network}, Height: ${info.height}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to connect to Arweave:', error.message);
+    console.log('💡 Make sure ArLocal is running on localhost:1984');
+    console.log('💡 Try: docker-compose up arlocal');
+    return false;
+  }
+}
 
 async function main() {
   console.log("🤖 Birthing a new AI Agent with on-chain soul...");
+  
+  // Test connection first
+  const connected = await testArweaveConnection();
+  if (!connected) {
+    process.exit(1);
+  }
   
   // Check prerequisites
   const walletPath = './agent/wallet.json';
@@ -25,6 +54,7 @@ async function main() {
   
   if (!fs.existsSync(walletPath)) {
     console.error("❌ wallet.json not found in agent directory");
+    console.log("💡 Make sure you have a wallet.json file in the agent/ directory");
     process.exit(1);
   }
   

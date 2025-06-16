@@ -1,0 +1,111 @@
+{
+  "action_history": [
+    {
+      "timestamp": 1749932697033,
+      "action": "send_farcaster_post",
+      "target": "global",
+      "data": "Hello world!",
+      "result": {
+        "castHash": "abc123"
+      },
+      "status": "success",
+      "error": null,
+      "sequence": 1
+    },
+    {
+      "timestamp": 1749932697033,
+      "action": "send_farcaster_post",
+      "target": "global",
+      "data": "Another post",
+      "result": null,
+      "status": "failure:rate_limited",
+      "error": "Rate limited",
+      "sequence": 2
+    },
+    {
+      "timestamp": 1749932697361,
+      "action": "send_farcaster_post",
+      "target": "channel1",
+      "data": "Testing bot memory",
+      "result": {
+        "castHash": "def456"
+      },
+      "status": "success",
+      "error": null,
+      "sequence": 3
+    },
+    {
+      "timestamp": 1749932697362,
+      "action": "send_matrix_message",
+      "target": "room1",
+      "data": "Hello Matrix!",
+      "result": {
+        "event_id": "evt789"
+      },
+      "status": "success",
+      "error": null,
+      "sequence": 4
+    },
+    {
+      "timestamp": 1749932697362,
+      "action": "like_farcaster_post",
+      "target": "test-cast-123",
+      "data": null,
+      "result": {
+        "success": true
+      },
+      "status": "success",
+      "error": null,
+      "sequence": 5
+    },
+    {
+      "timestamp": 1749932697363,
+      "action": "react_to_matrix_message",
+      "target": "test-event-456",
+      "data": "👍",
+      "result": {
+        "event_id": "reaction123"
+      },
+      "status": "success",
+      "error": null,
+      "sequence": 6
+    }
+  ],
+  "bot_activity_context": {
+    "last_cast": {
+      "content": "Testing bot memory",
+      "timestamp": 1749932697361,
+      "target": "channel1",
+      "result": {
+        "castHash": "def456"
+      }
+    },
+    "last_matrix_message": {
+      "content": "Hello Matrix!",
+      "timestamp": 1749932697362,
+      "target": "room1",
+      "result": {
+        "event_id": "evt789"
+      }
+    },
+    "last_action_timestamp": 1749932697363
+  },
+  "farcaster_feeds": {
+    "home_feed": [],
+    "for_you_feed": [],
+    "last_cache_update": null
+  },
+  "processed_messages": [],
+  "duplicate_prevention": {
+    "recent_content_hashes": [
+      "-17429983",
+      "-1231363552"
+    ],
+    "cooldown_actions": [
+      [
+        "send_farcaster_post_global",
+        1749933597033
+      ]
+    ]
+  }
+}

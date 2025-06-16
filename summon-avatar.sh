@@ -27,6 +27,37 @@ if ! command -v node > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check if ArLocal is running
+check_arlocal() {
+    echo "🔍 Checking ArLocal connection..."
+    if curl -s http://localhost:1984/info > /dev/null 2>&1; then
+        echo "✅ ArLocal is running on localhost:1984"
+        return 0
+    else
+        echo "❌ ArLocal is not running"
+        echo "💡 Starting ArLocal..."
+        docker-compose up -d arlocal
+        
+        # Wait for ArLocal to be ready
+        echo "⏳ Waiting for ArLocal to be ready..."
+        for i in {1..30}; do
+            if curl -s http://localhost:1984/info > /dev/null 2>&1; then
+                echo "✅ ArLocal is now ready"
+                return 0
+            fi
+            sleep 2
+        done
+        
+        echo "❌ Failed to start ArLocal"
+        return 1
+    fi
+}
+
+# Check ArLocal
+if ! check_arlocal; then
+    exit 1
+fi
+
 # Check if wallet exists
 if [ ! -f "$PROJECT_ROOT/wallets/wallet.json" ]; then
     echo "❌ Wallet not found at wallets/wallet.json"

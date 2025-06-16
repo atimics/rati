@@ -1,0 +1,151 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Docker: Build and Start All Services",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"up",
+				"-d",
+				"--build"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Watch Deployment Service Logs",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"logs",
+				"-f",
+				"deployment-service"
+			],
+			"group": "test",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Restart Deployment Service",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"restart",
+				"deployment-service"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Rebuild Deployment Service",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"up",
+				"-d",
+				"--build",
+				"deployment-service"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Stop All Services",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"down"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: View All Logs",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"logs",
+				"-f"
+			],
+			"group": "test",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test: Check Deployment Service Health",
+			"type": "shell",
+			"command": "curl",
+			"args": [
+				"-s",
+				"http://localhost:3032/health"
+			],
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test: Get Seed.json",
+			"type": "shell",
+			"command": "curl",
+			"args": [
+				"-s",
+				"http://localhost:3032/api/seed"
+			],
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test: Deploy Genesis",
+			"type": "shell",
+			"command": "curl",
+			"args": [
+				"-X",
+				"POST",
+				"http://localhost:3032/api/deploy/genesis",
+				"-H",
+				"Content-Type: application/json",
+				"-d",
+				"{}"
+			],
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test: Deploy Oracle",
+			"type": "shell",
+			"command": "curl",
+			"args": [
+				"-X",
+				"POST",
+				"http://localhost:3032/api/deploy/oracle",
+				"-H",
+				"Content-Type: application/json",
+				"-d",
+				"{}"
+			],
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Clean: Remove All Docker Data",
+			"type": "shell",
+			"command": "docker-compose",
+			"args": [
+				"down",
+				"-v",
+				"--remove-orphans"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

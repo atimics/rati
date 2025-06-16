@@ -4,13 +4,21 @@ services:
     image: textury/arlocal:latest
     platform: linux/amd64
     container_name: RATi-arlocal
-    ports:
-      - "1984:1984"
+    # Port 1984 is internal only - access via deployment service proxy
+    environment:
+      - ARLOCAL_PROTOCOL=http
+      - ARLOCAL_HOST=0.0.0.0
+      - ARLOCAL_PORT=1984
     volumes:
       - arlocal_data:/app/data
     networks:
       - RATi-network
-    # No health check - relying on external wait scripts instead
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1984/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Redis for caching and session management
   redis:

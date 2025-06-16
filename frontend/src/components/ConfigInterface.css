@@ -1,0 +1,369 @@
+.config-interface {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.config-header-main {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.config-header-main h2 {
+  color: var(--primary-color, #2c5aa0);
+  margin-bottom: 8px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.config-header-main p {
+  color: var(--text-secondary, #666);
+  font-size: 16px;
+  margin: 0;
+}
+
+.config-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+  margin-bottom: 30px;
+  overflow-x: auto;
+}
+
+.config-tabs button {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.config-tabs button:hover {
+  color: var(--primary-color, #2c5aa0);
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.config-tabs button.active {
+  color: var(--primary-color, #2c5aa0);
+  border-bottom-color: var(--primary-color, #2c5aa0);
+}
+
+.config-content {
+  min-height: 400px;
+}
+
+.config-section {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.config-section h3 {
+  margin: 0 0 8px 0;
+  color: var(--text-primary, #333);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.config-description {
+  color: var(--text-secondary, #666);
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.config-field {
+  margin-bottom: 20px;
+}
+
+.config-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-primary, #333);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.config-field input,
+.config-field select,
+.config-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #333);
+  transition: border-color 0.2s ease;
+}
+
+.config-field input:focus,
+.config-field select:focus,
+.config-field textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #2c5aa0);
+  box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+}
+
+.config-field input:disabled,
+.config-field select:disabled,
+.config-field textarea:disabled {
+  background: var(--input-disabled-bg, #f8f8f8);
+  color: var(--text-disabled, #999);
+  cursor: not-allowed;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  line-height: 1.4;
+}
+
+.secret-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.secret-input {
+  flex: 1;
+}
+
+.toggle-secret-btn {
+  padding: 10px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  background: var(--button-secondary-bg, #f5f5f5);
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s ease;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-secret-btn:hover {
+  background: var(--button-secondary-hover, #e5e5e5);
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: normal !important;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto !important;
+  margin: 0;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--toggle-off, #ccc);
+  transition: 0.2s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--primary-color, #2c5aa0);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.test-connection-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--primary-color, #2c5aa0);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--primary-color, #2c5aa0);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.test-connection-btn:hover:not(:disabled) {
+  background: var(--primary-color, #2c5aa0);
+  color: white;
+}
+
+.test-connection-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-actions {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.save-config-btn {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary-color, #2c5aa0);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-width: 160px;
+}
+
+.save-config-btn:hover:not(:disabled) {
+  background: var(--primary-hover, #1e3f73);
+}
+
+.save-config-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.save-status {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.save-status.success {
+  background: var(--success-bg, #d4edda);
+  color: var(--success-color, #155724);
+  border: 1px solid var(--success-border, #c3e6cb);
+}
+
+.save-status.error {
+  background: var(--error-bg, #f8d7da);
+  color: var(--error-color, #721c24);
+  border: 1px solid var(--error-border, #f1b0b7);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .config-interface {
+    --primary-color: #4a90e2;
+    --primary-hover: #357abd;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --card-bg: #2a2a2a;
+    --input-bg: #333333;
+    --border-color: #404040;
+    --hover-bg: #3a3a3a;
+    --button-secondary-bg: #404040;
+    --button-secondary-hover: #4a4a4a;
+    --toggle-off: #666;
+    --success-bg: #1e3a2e;
+    --success-color: #4caf50;
+    --success-border: #2e5233;
+    --error-bg: #3a1e1e;
+    --error-color: #f44336;
+    --error-border: #5d2e2e;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .config-interface {
+    padding: 16px;
+  }
+  
+  .config-section {
+    padding: 20px;
+  }
+  
+  .config-tabs {
+    gap: 4px;
+  }
+  
+  .config-tabs button {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .secret-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .toggle-secret-btn {
+    margin-top: 8px;
+  }
+  
+  .config-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .config-tabs {
+    flex-direction: column;
+    border-bottom: none;
+  }
+  
+  .config-tabs button {
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 0;
+  }
+  
+  .config-tabs button.active {
+    border-bottom-color: var(--primary-color, #2c5aa0);
+    background: var(--hover-bg, #f5f5f5);
+  }
+}

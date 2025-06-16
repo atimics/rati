@@ -2,57 +2,66 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import config from '../config.js';
+import JournalManager from './JournalManager';
 import './ChatInterface.css';
 
-// Ollama configuration constants
+// Ollama configuration
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-const MODEL_NAME = 'gemma3:latest'; // Using gemma3 for better performance
+const MODEL_NAME = 'gemma2:2b'; // Fallback to gemma2:2b if gemma3 not available
 
-const ChatInterface = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'agent',
-      content: 'Hello! I\'m your **RATi Digital Avatar AI Agent**. I can help you with deploying and managing your digital avatar. What would you like to know?',
-      timestamp: new Date()
-    }
-  ]);
+const ChatInterface = ({ agentData }) => {
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [currentModel, setCurrentModel] = useState(MODEL_NAME);
-  const [loreData, setLoreData] = useState(null);
-  const [agentMemories, setAgentMemories] = useState([]);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [journalDraft, setJournalDraft] = useState('');
+  const [publishedJournal, setPublishedJournal] = useState('');
   const messagesEndRef = useRef(null);
 
-  // Detect theme preference
+  // Handle journal updates from JournalManager
+  const handleJournalUpdate = (draft, published) => {
+    setJournalDraft(draft);
+    setPublishedJournal(published);
+  };
+
+  // Initialize with agent greeting and check Ollama
   useEffect(() => {
-    const checkTheme = () => {
-      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches ||
-                     document.documentElement.classList.contains('dark') ||
-                     document.body.classList.contains('dark-mode');
-      setIsDarkMode(isDark);
-    };
+    if (agentData?.agent) {
+      // Load chat history from localStorage
+      const savedMessages = localStorage.getItem(`messages_${agentData.agent.processId}`);
+      if (savedMessages) {
+        try {
+          const parsed = JSON.parse(savedMessages);
+          setMessages(parsed);
+        } catch (e) {
+          console.error('Failed to load saved messages:', e);
+        }
+      }
 
-    checkTheme();
-    
-    // Listen for theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const observer = new MutationObserver(checkTheme);
-    
-    mediaQuery.addEventListener('change', checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      // If no saved messages, show greeting
+      if (!savedMessages) {
+        setMessages([
+          {
+            id: 1,
+            type: 'agent',
+            content: `Hello! I'm your **RATi Digital Avatar** living on Arweave. 
 
-    return () => {
-      mediaQuery.removeEventListener('change', checkTheme);
-      observer.disconnect();
-    };
-  }, []);
+My process ID is \`${agentData.agent.processId}\` and I'm powered by Ollama with your agent's personality!
 
-  const getAvailableModel = async () => {
+What would you like to talk about?`,
+            timestamp: new Date()
+          }
+        ]);
+      }
+      
+      setConnectionStatus('connected');
+      checkOllamaConnection();
+    }
+  }, [agentData]);
+
+  // Check Ollama connection and available models
+  const checkOllamaConnection = async () => {
     try {
       const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
       if (response.ok) {
@@ -61,159 +70,109 @@ const ChatInterface = () => {
         
         // Prefer gemma3, fallback to gemma2:2b
         if (models.some(m => m.name.includes('gemma3'))) {
-          return models.find(m => m.name.includes('gemma3')).name;
-        } else if (models.some(m => m.name.includes('gemma2'))) {
-          return models.find(m => m.name.includes('gemma2')).name;
-        }
-        return MODEL_NAME; // fallback to default
-      }
-    } catch (error) {
-      console.error('Error getting available models:', error);
-      return MODEL_NAME;
-    }
-  };
-
-  // JSON Schema for structured responses
-  const responseSchema = {
-    type: "object",
-    properties: {
-      response: {
-        type: "string",
-        description: "The main response text to the user"
-      },
-      action: {
-        type: "string",
-        enum: ["chat", "deploy", "status", "help", "lore"],
-        description: "The type of action this response represents"
-      },
-      suggestions: {
-        type: "array",
-        items: {
-          type: "string"
-        },
-        description: "Follow-up suggestions for the user",
-        maxItems: 3
-      },
-      metadata: {
-        type: "object",
-        properties: {
-          confidence: {
-            type: "number",
-            minimum: 0,
-            maximum: 1
-          },
-          topic: {
-            type: "string"
-          }
-        }
-      }
-    },
-    required: ["response", "action"]
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Check Ollama connection and load data
-  useEffect(() => {
-    checkOllamaConnection();
-    loadLoreData();
-    loadAgentMemories();
-  }, []);
-
-  const checkOllamaConnection = async () => {
-    try {
-      const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
-      if (response.ok) {
-        const data = await response.json();
-        const models = data.models || [];
-        
-        // Check which Gemma model is available and set it
-        const hasGemma3 = models.some(m => m.name.includes('gemma3'));
-        const hasGemma2 = models.some(m => m.name.includes('gemma2'));
-        
-        if (hasGemma3) {
           const gemma3Model = models.find(m => m.name.includes('gemma3')).name;
           setCurrentModel(gemma3Model);
           console.log(`Using ${gemma3Model} model`);
-        } else if (hasGemma2) {
+        } else if (models.some(m => m.name.includes('gemma2'))) {
           const gemma2Model = models.find(m => m.name.includes('gemma2')).name;
           setCurrentModel(gemma2Model);
           console.log(`Using ${gemma2Model} model`);
         } else {
           console.warn('No Gemma models found. Please install gemma3 or gemma2:2b');
         }
-        
-        setIsConnected(true);
-        console.log('Connected to Ollama');
+        setConnectionStatus('connected');
+      } else {
+        setConnectionStatus('disconnected');
+        console.error('Ollama not available');
       }
     } catch (error) {
-      console.error('Failed to connect to Ollama:', error);
-      setIsConnected(false);
+      setConnectionStatus('disconnected');
+      console.error('Error connecting to Ollama:', error);
     }
   };
 
-  const loadLoreData = async () => {
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    if (agentData?.agent?.processId && messages.length > 0) {
+      localStorage.setItem(`messages_${agentData.agent.processId}`, JSON.stringify(messages));
+    }
+  }, [messages, agentData]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (agentData?.agent?.processId && messages.length > 0) {
+      localStorage.setItem(`messages_${agentData.agent.processId}`, JSON.stringify(messages));
+    }
+  }, [messages, agentData?.agent?.processId]);
+
+  // Function to chunk and summarize long chat histories
+  const summarizeChatHistory = (messages, maxLength = 2000) => {
+    const recentMessages = messages.slice(-10); // Always keep last 10 messages
+    const recentText = recentMessages.map(m => `${m.type}: ${m.content}`).join('\n');
+    
+    if (recentText.length <= maxLength) {
+      return recentText;
+    }
+    
+    // If still too long, create a summary
+    const summary = `[SUMMARY] Recent conversation covered ${messages.length} messages about: ` +
+      messages.slice(-5).map(m => m.content.substring(0, 50) + '...').join('; ') +
+      '\n\n[RECENT MESSAGES]\n' +
+      recentMessages.slice(-3).map(m => `${m.type}: ${m.content}`).join('\n');
+    
+    return summary.substring(0, maxLength);
+  };
+
+  // Construct enhanced system prompt with journal and chat history
+  const buildSystemPrompt = (userMessage) => {
+    const baseSeed = agentData.agent.prompt || 
+      `You are a RATi Digital Avatar, an autonomous AI entity living on the Arweave permanent web. You embody creativity, curiosity, and collaboration.`;
+    
+    let enhancedPrompt = `${baseSeed}\n\n`;
+    
+    // Add published journal (persistent memory)
+    if (publishedJournal) {
+      enhancedPrompt += `## YOUR PUBLISHED MEMORY JOURNAL:\n${publishedJournal}\n\n`;
+    }
+    
+    // Add recent chat context
+    if (messages.length > 0) {
+      const chatContext = summarizeChatHistory(messages);
+      enhancedPrompt += `## RECENT CONVERSATION CONTEXT:\n${chatContext}\n\n`;
+    }
+    
+    // Add draft journal thoughts (if any)
+    if (journalDraft) {
+      enhancedPrompt += `## YOUR CURRENT THOUGHTS (DRAFT):\n${journalDraft}\n\n`;
+    }
+    
+    enhancedPrompt += `## CURRENT INTERACTION:\nUser: ${userMessage}\nAssistant:`;
+    
+    return enhancedPrompt;
+  };
+
+  const sendMessage = async () => {
+    if (!inputText.trim() || isLoading || !agentData?.agent) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: inputText.trim(),
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputText('');
+    setIsLoading(true);
+
     try {
-      // Load genesis scroll from Arweave
-      if (config.genesis?.txid) {
-        const arweaveUrl = `${config.arweave.protocol}://${config.arweave.host === 'localhost' ? 'arweave.net' : config.arweave.host}/${config.genesis.txid}`;
-        const response = await fetch(arweaveUrl);
-        if (response.ok) {
-          const lore = await response.text();
-          setLoreData(lore);
-          console.log('Loaded lore data from Arweave');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load lore data:', error);
-    }
-  };
-
-  const loadAgentMemories = async () => {
-    try {
-      // This could be expanded to load from Arweave transactions tagged with agent memories
-      setAgentMemories([
-        { id: 1, content: "Digital avatar deployment patterns", timestamp: new Date() },
-        { id: 2, content: "Oracle council interactions", timestamp: new Date() },
-        { id: 3, content: "User preferences and behavior", timestamp: new Date() }
-      ]);
-    } catch (error) {
-      console.error('Failed to load agent memories:', error);
-    }
-  };
-
-  const buildSystemPrompt = () => {
-    let systemPrompt = `You are RATi, an AI agent for a decentralized digital avatar platform. You help users deploy and manage autonomous digital organisms on Arweave.
-
-Key responsibilities:
-- Help with genesis scroll deployment
-- Assist with oracle council setup  
-- Guide AI agent deployment
-- Answer questions about the RATi platform
-- Provide deployment status and troubleshooting
-
-Always respond in a helpful, technical but friendly manner. You have access to the platform's lore and previous interactions.`;
-
-    if (loreData) {
-      systemPrompt += `\n\nPlatform Lore:\n${loreData.substring(0, 2000)}...`;
-    }
-
-    if (agentMemories.length > 0) {
-      systemPrompt += `\n\nRecent memories:\n${agentMemories.map(m => `- ${m.content}`).join('\n')}`;
-    }
-
-    return systemPrompt;
-  };
-
-  const callOllama = async (userMessage) => {
-    try {
-      const modelToUse = await getAvailableModel();
+      // Use enhanced system prompt with journal and chat context
+      const enhancedPrompt = buildSystemPrompt(userMessage.content);
       
       const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
         method: 'POST',
@@ -221,17 +180,15 @@ Always respond in a helpful, technical but friendly manner. You have access to t
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: modelToUse,
-          system: buildSystemPrompt(),
-          prompt: userMessage,
-          format: responseSchema,
+          model: currentModel,
+          prompt: enhancedPrompt,
           stream: false,
           options: {
             temperature: 0.7,
             top_p: 0.9,
             max_tokens: 500
           }
-        }),
+        })
       });
 
       if (!response.ok) {
@@ -239,257 +196,158 @@ Always respond in a helpful, technical but friendly manner. You have access to t
       }
 
       const data = await response.json();
-      
-      // Try to parse structured response
-      try {
-        const structuredResponse = JSON.parse(data.response);
-        return structuredResponse;
-      } catch {
-        // Fallback to plain text response
-        return {
-          response: data.response,
-          action: "chat",
-          suggestions: [],
-          metadata: { confidence: 0.8 }
-        };
-      }
-    } catch (error) {
-      console.error('Ollama API call failed:', error);
-      throw error;
-    }
-  };
+      const agentResponse = data.response || 'I apologize, but I had trouble generating a response. Please try again!';
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
-
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: inputText,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputText;
-    setInputText('');
-    setIsTyping(true);
-
-    try {
-      if (!isConnected) {
-        throw new Error('Not connected to Ollama. Please ensure Ollama is running on localhost:11434');
-      }
-
-      const aiResponse = await callOllama(currentInput);
-      
       const agentMessage = {
         id: Date.now() + 1,
         type: 'agent',
-        content: aiResponse.response,
-        timestamp: new Date(),
-        action: aiResponse.action,
-        suggestions: aiResponse.suggestions || [],
-        metadata: aiResponse.metadata || {}
+        content: agentResponse.trim(),
+        timestamp: new Date()
       };
 
       setMessages(prev => [...prev, agentMessage]);
 
-      // Store interaction in agent memories
-      setAgentMemories(prev => [
-        ...prev,
-        {
-          id: Date.now(),
-          content: `User asked: "${currentInput.substring(0, 100)}..." - Responded about ${aiResponse.metadata?.topic || aiResponse.action}`,
-          timestamp: new Date()
-        }
-      ].slice(-10)); // Keep last 10 memories
-
     } catch (error) {
-      const errorMessage = {
+      console.error('Error with Ollama:', error);
+      
+      // Fallback response that still uses agent personality
+      const fallbackMessage = {
         id: Date.now() + 1,
         type: 'agent',
-        content: `Sorry, I encountered an error: ${error.message}. Make sure Ollama is running with the ${MODEL_NAME} model loaded.`,
-        timestamp: new Date(),
-        action: 'error'
+        content: `I understand you said: "${userMessage.content}"
+
+As your RATi digital avatar, I'm experiencing some technical difficulties with my AI processing right now. I'm running on Arweave with process ID \`${agentData.agent.processId}\`, but my Ollama connection seems to have an issue.
+
+Could you please try your message again, or check if Ollama is running locally?`,
+        timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+
+      setMessages(prev => [...prev, fallbackMessage]);
     } finally {
-      setIsTyping(false);
+      setIsLoading(false);
     }
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      sendMessage();
     }
   };
 
-  const quickActions = [
-    { text: "Deploy Genesis Scroll", action: "deploy-genesis", prompt: "I want to deploy the genesis scroll for my digital avatar. Can you guide me through the process?" },
-    { text: "Deploy Oracle Council", action: "deploy-oracle", prompt: "How do I deploy the oracle council? What are the requirements?" },
-    { text: "Deploy AI Agent", action: "deploy-agent", prompt: "I'd like to deploy an AI agent. What steps do I need to follow?" },
-    { text: "Check System Status", action: "status", prompt: "What's the current system status? Are all services running properly?" },
-    { text: "Explain RATi Platform", action: "lore", prompt: "Can you explain what the RATi platform is and how digital avatars work?" },
-    { text: "View Documentation", action: "docs", prompt: "Where can I find documentation about the RATi platform?" },
-    { text: "Troubleshoot Issues", action: "troubleshoot", prompt: "I'm having issues with my deployment. Can you help me troubleshoot?" }
-  ];
-
-  const handleQuickAction = (action) => {
-    const quickAction = quickActions.find(qa => qa.action === action);
-    if (quickAction) {
-      setInputText(quickAction.prompt);
-    }
-  };
-
-  const formatTime = (timestamp) => {
-    return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  if (!agentData) {
+    return (
+      <div className="chat-interface">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading agent...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="chat-interface">
       <div className="chat-header">
-        <div className="chat-title">
-          <h3>🤖 RATi Digital Avatar Assistant</h3>
-          <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-            <span className="status-dot"></span>
-            {isConnected ? `Connected (${currentModel})` : 'Connecting to Ollama...'}
+        <div className="agent-info">
+          <span className={`status-indicator ${connectionStatus}`}></span>
+          <div className="agent-details">
+            <h3>RATi Agent</h3>
+            <p>Process: {agentData.agent.processId.slice(0, 16)}...</p>
+            <p>Model: {currentModel} via Ollama</p>
           </div>
         </div>
-        {loreData && (
-          <div className="lore-status">
-            <small>📜 Lore loaded from Arweave • 🧠 {agentMemories.length} memories</small>
-          </div>
-        )}
       </div>
 
-      <div className="chat-messages">
-        {messages.map((message) => (
-          <div key={message.id} className={`message ${message.type}`}>
+      <div className="messages-container">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`message ${msg.type}`}>
             <div className="message-avatar">
-              {message.type === 'agent' ? (
-                <img 
-                  src={isDarkMode ? "/rati-logo-light.png" : "/rati-logo-dark.png"} 
-                  alt="RATi Agent" 
-                  className="avatar-logo agent-avatar"
-                />
-              ) : (
-                <img 
-                  src={isDarkMode ? "/rati-logo-light.png" : "/rati-logo-dark.png"} 
-                  alt="User" 
-                  className="avatar-logo user-avatar"
-                />
-              )}
+              <img 
+                src={msg.type === 'agent' ? '/rati-logo-light.png' : '/rati-logo-dark.png'} 
+                alt={msg.type === 'agent' ? 'RATi Agent' : 'User'} 
+              />
             </div>
-            <div className="message-content">
-              <div className="message-text">
-                <ReactMarkdown 
+            <div className="message-bubble">
+              <div className="message-content">
+                <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   components={{
-                    // Prevent code blocks from being too large
-                    code: ({inline, className, children, ...props}) => {
+                    code({ inline, children, ...props }) {
                       return inline ? (
-                        <code className={className} {...props}>
+                        <code className="inline-code" {...props}>
                           {children}
                         </code>
                       ) : (
                         <pre className="code-block">
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
+                          <code {...props}>{children}</code>
                         </pre>
                       );
-                    },
-                    // Style links
-                    a: ({children, ...props}) => (
-                      <a {...props} target="_blank" rel="noopener noreferrer">
-                        {children}
-                      </a>
-                    )
+                    }
                   }}
                 >
-                  {message.content}
+                  {msg.content}
                 </ReactMarkdown>
               </div>
-              {message.suggestions && message.suggestions.length > 0 && (
-                <div className="message-suggestions">
-                  <small>💡 Suggestions:</small>
-                  {message.suggestions.map((suggestion, idx) => (
-                    <button 
-                      key={idx} 
-                      className="suggestion-btn"
-                      onClick={() => setInputText(suggestion)}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
               <div className="message-time">
-                {formatTime(message.timestamp)}
-                {message.metadata?.confidence && (
-                  <span className="confidence"> (confidence: {Math.round(message.metadata.confidence * 100)}%)</span>
-                )}
+                {msg.timestamp.toLocaleTimeString()}
               </div>
             </div>
           </div>
         ))}
         
-        {isTyping && (
+        {isLoading && (
           <div className="message agent">
             <div className="message-avatar">
-              <img 
-                src={isDarkMode ? "/rati-logo-light.png" : "/rati-logo-dark.png"} 
-                alt="RATi Agent" 
-                className="avatar-logo agent-avatar"
-              />
+              <img src="/rati-logo-light.png" alt="RATi Agent" />
             </div>
-            <div className="message-content">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
+            <div className="message-bubble">
+              <div className="message-content typing">
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </div>
             </div>
           </div>
         )}
+        
         <div ref={messagesEndRef} />
       </div>
 
-      {!inputText.trim() && (
-        <div className="quick-actions">
-          <div className="quick-actions-label">💡 Try asking:</div>
-          <div className="quick-actions-buttons">
-            {(() => {
-              const randomSuggestion = quickActions[Math.floor(Math.random() * quickActions.length)];
-              return (
-                <button
-                  className="quick-action-btn"
-                  onClick={() => handleQuickAction(randomSuggestion.action)}
-                >
-                  {randomSuggestion.text}
-                </button>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
       <div className="chat-input">
-        <textarea
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Ask me about digital avatar deployment, oracle management, or AI agents..."
-          rows="3"
-        />
-        <button 
-          onClick={handleSendMessage}
-          disabled={!inputText.trim() || isTyping || !isConnected}
-          className="send-button"
-        >
-          {isTyping ? 'Thinking...' : 'Send'}
-        </button>
+        <div className="input-container">
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Chat with your RATi agent..."
+            disabled={isLoading}
+            rows={1}
+            style={{
+              minHeight: '20px',
+              maxHeight: '120px',
+              resize: 'none',
+              overflow: 'auto'
+            }}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!inputText.trim() || isLoading}
+            className="send-button"
+          >
+            {isLoading ? '⏳' : '📤'}
+          </button>
+        </div>
       </div>
+
+      {/* Journal Manager */}
+      <JournalManager 
+        agentData={agentData}
+        messages={messages}
+        onJournalUpdate={handleJournalUpdate}
+      />
     </div>
   );
 };

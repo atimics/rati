@@ -140,8 +140,8 @@ async function loadStateFromArweave() {
     // 1. Fetch the personality prompt
     const promptQuery = `{
       transactions(tags: [
-        {name: "Type", values: ["Agent-Prompt"]},
-        {name: "Owner-Process", values: ["${AO_PROCESS_ID}"]}
+        {name: "Type", values: ["Agent-Personality"]},
+        {name: "Agent-Process-ID", values: ["${AO_PROCESS_ID}"]}
       ], first: 1) { 
         edges { 
           node { 

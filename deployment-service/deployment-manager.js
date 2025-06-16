@@ -1,8 +1,13 @@
 import { EventEmitter } from 'events';
+import crypto from 'crypto';
 import { createDataItemSigner, message, spawn } from '@permaweb/aoconnect';
 import Arweave from 'arweave';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import path from 'path';
+
+// Ensure crypto polyfill for ao-connect
+if (!globalThis.crypto) {
+  globalThis.crypto = crypto.webcrypto || crypto;
+}
 
 export class DeploymentManager extends EventEmitter {
     constructor() {
@@ -89,7 +94,7 @@ export class DeploymentManager extends EventEmitter {
         return JSON.parse(readFileSync(walletPath, 'utf-8'));
     }
 
-    async deployGenesis(options = {}) {
+    async deployGenesis(_options = {}) {
         this.log('info', 'Starting genesis deployment');
         
         const state = this.loadState();
@@ -99,7 +104,6 @@ export class DeploymentManager extends EventEmitter {
 
         try {
             const wallet = await this.loadWallet();
-            const signer = createDataItemSigner(wallet);
 
             // Read genesis scroll content
             const scrollPaths = [
@@ -151,7 +155,7 @@ export class DeploymentManager extends EventEmitter {
         }
     }
 
-    async deployOracle(options = {}) {
+    async deployOracle(_options = {}) {
         this.log('info', 'Starting oracle deployment');
 
         const state = this.loadState();
@@ -202,7 +206,7 @@ export class DeploymentManager extends EventEmitter {
         }
     }
 
-    async deployAgent(options = {}) {
+    async deployAgent(_options = {}) {
         this.log('info', 'Starting agent deployment');
 
         const state = this.loadState();
@@ -233,13 +237,13 @@ export class DeploymentManager extends EventEmitter {
 
             this.log('info', 'Agent process spawned', { processId: agentProcessId });
 
-            // Initialize with cell blueprint
-            const cellCode = readFileSync('/app/src/cell/cell.lua', 'utf-8');
+            // Initialize with avatar blueprint
+            const avatarCode = readFileSync('/app/src/avatar/avatar.lua', 'utf-8');
             
             await message({
                 process: agentProcessId,
                 signer,
-                data: cellCode,
+                data: avatarCode,
                 tags: [{ name: 'Action', value: 'Eval' }]
             });
 

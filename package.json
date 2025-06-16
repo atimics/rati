@@ -18,6 +18,10 @@
     "deploy:processes": "node scripts/deploy-processes.js",
     "deploy:enhanced": "node scripts/enhanced-deploy.js",
     "deploy:full": "node scripts/enhanced-deploy.js full",
+    "test-arweave": "node scripts/test-arweave.js",
+    "summon-avatar": "./summon-avatar.sh",
+    "start-arlocal": "docker-compose up -d arlocal",
+    "stop-arlocal": "docker-compose stop arlocal",
     "agent:setup": "./setup-agent.sh",
     "agent:launch": "./launch-agents.sh 1",
     "agent:swarm": "./launch-agents.sh 5",
@@ -31,6 +35,7 @@
     "docker:clean": "docker-compose down -v --remove-orphans && docker system prune -f",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:integration": "./test-integration.sh",
+    "test:e2e": "./test-e2e.sh",
     "health:check": "./health-check.sh",
     "explorer": "./explore-agent.sh",
     "welcome": "./welcome.sh"
