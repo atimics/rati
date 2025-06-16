@@ -15,6 +15,9 @@ import arweaveRoutes from './routes/arweave.js';
 import deploymentRoutes from './routes/deployments.js';
 import agentRoutes from './routes/agent.js';
 
+// Journal routes
+import journalRoutes from './routes/journal.js';
+
 // Polyfill crypto for ao-connect in containerized environments
 if (!globalThis.crypto) {
   globalThis.crypto = crypto.webcrypto || crypto;
@@ -105,6 +108,7 @@ app.use('/', healthRoutes);
 app.use('/', arweaveRoutes);
 app.use('/', deploymentRoutes);
 app.use('/', agentRoutes);
+app.use('/journal', journalRoutes);
 
 // 404 handler for undefined routes
 app.use('*', (req, res) => {
