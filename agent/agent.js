@@ -2,9 +2,23 @@ import 'dotenv/config';
 import { createDataItemSigner, message, dryrun } from '@permaweb/aoconnect';
 import OpenAI from 'openai';
 import fs from 'fs';
-import Arweave from 'arweave';
-
-// --- ConfiguRATion ---
+import Arweave from     // 2. Fetch the latest memory to get sequence and chain
+    const memoryQuery = `{
+      transactions(tags: [
+        {name: "Type", values: ["Agent-Memory"]},
+        {name: "Agent-Process-ID", values: ["${AO_PROCESS_ID}"]}
+      ], first: 10, sort: HEIGHT_DESC) { 
+        edges { 
+          node { 
+            id,
+            tags {
+              name,
+              value
+            }
+          } 
+        } 
+      }
+    }`;- ConfiguRATion ---
 const { 
   AO_PROCESS_ID, 
   OPENAI_API_KEY, 
