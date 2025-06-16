@@ -2,7 +2,7 @@ import express from 'express';
 import { asyncHandler, ApiError } from '../utils/errors.js';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { autoDeployIfNeeded, updateAgentEnvironment } from '../services/deployment.js';
+import { autoDeployIfNeeded, updateAgentEnvironment, loadWallet, deployGenesis, deployOracle, deployDefaultAgent } from '../services/deployment.js';
 
 const router = express.Router();
 
@@ -138,8 +138,7 @@ router.get('/api/wallets', asyncHandler(async (req, res) => {
 }));
 
 /**
- * Deploy Genesis - placeholder for now
- * TODO: Integrate with actual deployment logic
+ * Deploy Genesis - implements actual deployment logic
  */
 router.post('/api/deploy/genesis', asyncHandler(async (req, res) => {
   const deploymentId = `genesis-${Date.now()}`;
@@ -154,26 +153,61 @@ router.post('/api/deploy/genesis', asyncHandler(async (req, res) => {
 
   deployments.set(deploymentId, deployment);
 
-  // TODO: Implement actual genesis deployment logic
-  // For now, simulate deployment
-  setTimeout(() => {
+  // Perform actual genesis deployment
+  try {
+    deployment.logs.push('Loading wallet...');
+    const wallet = await loadWallet();
+    
+    deployment.logs.push('Deploying genesis contract...');
+    const genesisResult = await deployGenesis(wallet);
+    
     deployment.status = 'completed';
     deployment.endTime = new Date().toISOString();
-    deployment.logs.push('Genesis deployment completed successfully');
-  }, 5000);
+    deployment.logs.push(`Genesis deployment completed successfully. Process ID: ${genesisResult.processId}`);
+    deployment.result = genesisResult;
 
-  res.json({ 
-    deploymentId, 
-    message: 'Genesis deployment started',
-    requestId: req.requestId
-  });
+    res.json({ 
+      deploymentId, 
+      message: 'Genesis deployment completed',
+      result: genesisResult,
+      requestId: req.requestId
+    });
+  } catch (error) {
+    deployment.status = 'failed';
+    deployment.endTime = new Date().toISOString();
+    deployment.error = error.message;
+    deployment.logs.push(`Genesis deployment failed: ${error.message}`);
+    
+    throw new ApiError(
+      'Genesis deployment failed',
+      'GENESIS_DEPLOY_ERROR',
+      500,
+      { originalError: error.message, deploymentId },
+      [
+        'Check wallet.json exists and is valid',
+        'Ensure ArLocal is running',
+        'Verify network connectivity'
+      ]
+    );
+  }
 }));
 
 /**
- * Deploy Oracle - placeholder for now
- * TODO: Integrate with actual deployment logic
+ * Deploy Oracle - implements actual deployment logic
  */
 router.post('/api/deploy/oracle', asyncHandler(async (req, res) => {
+  const { genesisProcessId } = req.body;
+  
+  if (!genesisProcessId) {
+    throw new ApiError(
+      'Genesis process ID is required for oracle deployment',
+      'MISSING_GENESIS_ID',
+      400,
+      null,
+      ['Deploy genesis first', 'Provide genesisProcessId in request body']
+    );
+  }
+
   const deploymentId = `oracle-${Date.now()}`;
   const deployment = {
     id: deploymentId,
@@ -186,25 +220,61 @@ router.post('/api/deploy/oracle', asyncHandler(async (req, res) => {
 
   deployments.set(deploymentId, deployment);
 
-  // TODO: Implement actual oracle deployment logic
-  setTimeout(() => {
+  // Perform actual oracle deployment
+  try {
+    deployment.logs.push('Loading wallet...');
+    const wallet = await loadWallet();
+    
+    deployment.logs.push(`Deploying oracle contract with genesis ID: ${genesisProcessId}...`);
+    const oracleResult = await deployOracle(wallet, genesisProcessId);
+    
     deployment.status = 'completed';
     deployment.endTime = new Date().toISOString();
-    deployment.logs.push('Oracle deployment completed successfully');
-  }, 3000);
+    deployment.logs.push(`Oracle deployment completed successfully. Process ID: ${oracleResult.processId}`);
+    deployment.result = oracleResult;
 
-  res.json({ 
-    deploymentId, 
-    message: 'Oracle deployment started',
-    requestId: req.requestId
-  });
+    res.json({ 
+      deploymentId, 
+      message: 'Oracle deployment completed',
+      result: oracleResult,
+      requestId: req.requestId
+    });
+  } catch (error) {
+    deployment.status = 'failed';
+    deployment.endTime = new Date().toISOString();
+    deployment.error = error.message;
+    deployment.logs.push(`Oracle deployment failed: ${error.message}`);
+    
+    throw new ApiError(
+      'Oracle deployment failed',
+      'ORACLE_DEPLOY_ERROR',
+      500,
+      { originalError: error.message, deploymentId },
+      [
+        'Check wallet.json exists and is valid',
+        'Ensure genesis process ID is valid',
+        'Verify network connectivity'
+      ]
+    );
+  }
 }));
 
 /**
- * Deploy Agent - placeholder for now
- * TODO: Integrate with actual deployment logic
+ * Deploy Agent - implements actual deployment logic
  */
 router.post('/api/deploy/agent', asyncHandler(async (req, res) => {
+  const { genesisProcessId } = req.body;
+  
+  if (!genesisProcessId) {
+    throw new ApiError(
+      'Genesis process ID is required for agent deployment',
+      'MISSING_GENESIS_ID',
+      400,
+      null,
+      ['Deploy genesis first', 'Provide genesisProcessId in request body']
+    );
+  }
+
   const deploymentId = `agent-${Date.now()}`;
   const deployment = {
     id: deploymentId,
@@ -217,22 +287,50 @@ router.post('/api/deploy/agent', asyncHandler(async (req, res) => {
 
   deployments.set(deploymentId, deployment);
 
-  // TODO: Implement actual agent deployment logic
-  setTimeout(() => {
+  // Perform actual agent deployment
+  try {
+    deployment.logs.push('Loading wallet...');
+    const wallet = await loadWallet();
+    
+    deployment.logs.push(`Deploying agent with genesis ID: ${genesisProcessId}...`);
+    const agentResult = await deployDefaultAgent(wallet, genesisProcessId);
+    
+    deployment.logs.push('Updating agent environment...');
+    await updateAgentEnvironment(agentResult.processId);
+    
     deployment.status = 'completed';
     deployment.endTime = new Date().toISOString();
-    deployment.logs.push('Agent deployment completed successfully');
-  }, 4000);
+    deployment.logs.push(`Agent deployment completed successfully. Process ID: ${agentResult.processId}`);
+    deployment.result = agentResult;
 
-  res.json({ 
-    deploymentId, 
-    message: 'Agent deployment started',
-    requestId: req.requestId
-  });
+    res.json({ 
+      deploymentId, 
+      message: 'Agent deployment completed',
+      result: agentResult,
+      requestId: req.requestId
+    });
+  } catch (error) {
+    deployment.status = 'failed';
+    deployment.endTime = new Date().toISOString();
+    deployment.error = error.message;
+    deployment.logs.push(`Agent deployment failed: ${error.message}`);
+    
+    throw new ApiError(
+      'Agent deployment failed',
+      'AGENT_DEPLOY_ERROR',
+      500,
+      { originalError: error.message, deploymentId },
+      [
+        'Check wallet.json exists and is valid',
+        'Ensure genesis process ID is valid',
+        'Verify agent code exists'
+      ]
+    );
+  }
 }));
 
 /**
- * Full deployment (genesis + oracle + agent)
+ * Full deployment (genesis + oracle + agent) with proper sequencing
  */
 router.post('/api/deploy/full', asyncHandler(async (req, res) => {
   const deploymentId = `full-${Date.now()}`;
@@ -252,12 +350,76 @@ router.post('/api/deploy/full', asyncHandler(async (req, res) => {
 
   deployments.set(deploymentId, deployment);
 
-  // TODO: Implement actual full deployment logic with proper sequencing
-  res.json({ 
-    deploymentId, 
-    message: 'Full deployment started',
-    requestId: req.requestId
-  });
+  // Perform sequential deployment
+  try {
+    deployment.logs.push('Loading wallet...');
+    const wallet = await loadWallet();
+    
+    // Step 1: Deploy Genesis
+    deployment.logs.push('Step 1/3: Deploying genesis...');
+    deployment.steps.genesis = 'running';
+    const genesisResult = await deployGenesis(wallet);
+    deployment.steps.genesis = 'completed';
+    deployment.logs.push(`Genesis deployed successfully. Process ID: ${genesisResult.processId}`);
+    
+    // Step 2: Deploy Oracle
+    deployment.logs.push('Step 2/3: Deploying oracle...');
+    deployment.steps.oracle = 'running';
+    const oracleResult = await deployOracle(wallet, genesisResult.processId);
+    deployment.steps.oracle = 'completed';
+    deployment.logs.push(`Oracle deployed successfully. Process ID: ${oracleResult.processId}`);
+    
+    // Step 3: Deploy Agent
+    deployment.logs.push('Step 3/3: Deploying agent...');
+    deployment.steps.agent = 'running';
+    const agentResult = await deployDefaultAgent(wallet, genesisResult.processId);
+    deployment.steps.agent = 'completed';
+    deployment.logs.push(`Agent deployed successfully. Process ID: ${agentResult.processId}`);
+    
+    // Update agent environment
+    deployment.logs.push('Updating agent environment configuration...');
+    await updateAgentEnvironment(agentResult.processId);
+    
+    deployment.status = 'completed';
+    deployment.endTime = new Date().toISOString();
+    deployment.logs.push('Full deployment completed successfully!');
+    
+    const result = {
+      genesis: genesisResult,
+      oracle: oracleResult,
+      agent: agentResult
+    };
+    deployment.result = result;
+
+    res.json({ 
+      deploymentId, 
+      message: 'Full deployment completed',
+      result,
+      requestId: req.requestId
+    });
+  } catch (error) {
+    // Mark failed step
+    if (deployment.steps.genesis === 'running') deployment.steps.genesis = 'failed';
+    if (deployment.steps.oracle === 'running') deployment.steps.oracle = 'failed';
+    if (deployment.steps.agent === 'running') deployment.steps.agent = 'failed';
+    
+    deployment.status = 'failed';
+    deployment.endTime = new Date().toISOString();
+    deployment.error = error.message;
+    deployment.logs.push(`Full deployment failed: ${error.message}`);
+    
+    throw new ApiError(
+      'Full deployment failed',
+      'FULL_DEPLOY_ERROR',
+      500,
+      { originalError: error.message, deploymentId, steps: deployment.steps },
+      [
+        'Check wallet.json exists and is valid',
+        'Ensure all source files exist',
+        'Verify network connectivity'
+      ]
+    );
+  }
 }));
 
 /**
@@ -313,9 +475,19 @@ router.post('/api/reset', asyncHandler(async (req, res) => {
   // Clear in-memory deployments
   deployments.clear();
   
-  // TODO: Reset actual deployment state files
+  // Remove seed.json if it exists
+  try {
+    const seedPath = path.join('/app/project-root', 'seed.json');
+    await fs.unlink(seedPath);
+    console.log('✅ Removed seed.json');
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      console.warn('⚠️  Could not remove seed.json:', error.message);
+    }
+  }
+  
   res.json({ 
-    message: 'Deployment state reset',
+    message: 'Deployment state reset successfully',
     requestId: req.requestId
   });
 }));

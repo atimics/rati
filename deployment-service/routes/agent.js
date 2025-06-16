@@ -147,15 +147,12 @@ router.post('/api/agent/config', asyncHandler(async (req, res) => {
  * Get agent status
  */
 router.get('/api/agent/status', asyncHandler(async (req, res) => {
-  // TODO: Implement actual agent status checking
-  // This could check if the agent Docker container is running, 
-  // or make a health check request to the agent service
-  
   const status = {
     running: false,
     configured: false,
     lastSeen: null,
     error: null,
+    processId: null,
     requestId: req.requestId
   };
 
@@ -164,9 +161,32 @@ router.get('/api/agent/status', asyncHandler(async (req, res) => {
     const agentEnvPath = path.join(process.cwd(), '..', 'agent', '.env');
     await fs.access(agentEnvPath);
     status.configured = true;
+    
+    // Try to read process ID from environment
+    const envContent = await fs.readFile(agentEnvPath, 'utf-8');
+    const processIdMatch = envContent.match(/ARWEAVE_PROCESS_ID=(.+)/);
+    if (processIdMatch) {
+      status.processId = processIdMatch[1].trim();
+    }
+    
+    // Check if agent is running by looking for seed.json with agent info
+    try {
+      const seedPath = path.join('/app/project-root', 'seed.json');
+      const seedContent = await fs.readFile(seedPath, 'utf-8');
+      const seedData = JSON.parse(seedContent);
+      
+      if (seedData.agent?.processId) {
+        status.running = true;
+        status.processId = seedData.agent.processId;
+        status.lastSeen = seedData.timestamp;
+      }
+    } catch {
+      // seed.json doesn't exist or is invalid
+    }
+    
   } catch {
     status.configured = false;
-    status.error = 'Agent not configured';
+    status.error = 'Agent not configured - missing .env file';
   }
 
   res.json(status);
@@ -176,14 +196,47 @@ router.get('/api/agent/status', asyncHandler(async (req, res) => {
  * Start agent (trigger agent launch)
  */
 router.post('/api/agent/start', asyncHandler(async (req, res) => {
-  // TODO: Implement agent start logic
-  // This could use Docker API or shell commands to start the agent
-  
-  res.json({
-    message: 'Agent start requested',
-    status: 'starting',
-    requestId: req.requestId
-  });
+  try {
+    // Check if agent is configured
+    const agentEnvPath = path.join(process.cwd(), '..', 'agent', '.env');
+    await fs.access(agentEnvPath);
+    
+    // Check if seed.json exists with agent info
+    const seedPath = path.join('/app/project-root', 'seed.json');
+    const seedContent = await fs.readFile(seedPath, 'utf-8');
+    const seedData = JSON.parse(seedContent);
+    
+    if (!seedData.agent?.processId) {
+      throw new ApiError(
+        'Agent not deployed yet',
+        'AGENT_NOT_DEPLOYED',
+        400,
+        null,
+        ['Deploy agent first using /api/deploy/agent']
+      );
+    }
+    
+    // In a full implementation, this would start the agent Docker container
+    // For now, we'll just return success if the configuration is valid
+    res.json({
+      message: 'Agent start requested - configuration validated',
+      status: 'ready',
+      processId: seedData.agent.processId,
+      requestId: req.requestId
+    });
+    
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new ApiError(
+        'Agent not configured or deployed',
+        'AGENT_NOT_READY',
+        400,
+        null,
+        ['Configure agent first', 'Ensure agent is deployed']
+      );
+    }
+    throw error;
+  }
 }));
 
 /**

@@ -20,7 +20,7 @@ try {
 
 // Configuration priority: seed.json > environment variables > defaults
 const { 
-  AO_PROCESS_ID = seedConfig?.genesis?.processId, 
+  AO_PROCESS_ID = seedConfig?.agent?.processId, 
   OPENAI_API_KEY, 
   OPENAI_API_URL = "https://api.openai.com/v1",
   POLLING_INTERVAL = 15000,
@@ -30,7 +30,7 @@ const {
 } = process.env;
 
 // Use process ID from seed.json if available
-const processId = AO_PROCESS_ID || seedConfig?.genesis?.processId;
+const processId = AO_PROCESS_ID || seedConfig?.agent?.processId;
 
 if (!processId || !OPENAI_API_KEY) {
   console.error("Missing required configuration:");
@@ -465,7 +465,7 @@ async function sendMessage(targetProcess, data) {
       signer,
       tags: [
         { name: 'Action', value: 'Gossip' },
-        { name: 'From-Agent', value: AO_PROCESS_ID }
+        { name: 'From-Agent', value: processId }
       ],
       data,
     });
@@ -481,7 +481,7 @@ async function createProposal(proposalData) {
   try {
     const signer = createDataItemSigner(wallet);
     const msgId = await message({
-      process: AO_PROCESS_ID,
+      process: processId,
       signer,
       tags: [
         { name: 'Action', value: 'Propose' },

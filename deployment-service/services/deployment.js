@@ -93,7 +93,7 @@ export async function autoDeployIfNeeded() {
 /**
  * Load wallet from wallets/wallet.json
  */
-async function loadWallet() {
+export async function loadWallet() {
   const walletPath = path.join(process.cwd(), 'wallets', 'wallet.json');
   
   try {
@@ -120,7 +120,7 @@ async function loadWallet() {
 /**
  * Deploy genesis contract
  */
-async function deployGenesis(wallet) {
+export async function deployGenesis(wallet) {
   const genesisCode = await fs.readFile(path.join(process.cwd(), 'src', 'avatar', 'avatar.lua'), 'utf-8');
   
   const processId = await spawn({
@@ -156,7 +156,7 @@ async function deployGenesis(wallet) {
 /**
  * Deploy oracle contract
  */
-async function deployOracle(wallet, genesisProcessId) {
+export async function deployOracle(wallet, genesisProcessId) {
   const oracleCode = await fs.readFile(path.join(process.cwd(), 'src', 'oracle', 'oracle.lua'), 'utf-8');
   
   const processId = await spawn({
@@ -193,7 +193,7 @@ async function deployOracle(wallet, genesisProcessId) {
 /**
  * Deploy default agent
  */
-async function deployDefaultAgent(wallet, genesisProcessId) {
+export async function deployDefaultAgent(wallet, genesisProcessId) {
   // Create default agent prompt
   const defaultPrompt = `# RATi Digital Avatar
 
