@@ -38,7 +38,8 @@ router.get('/api/deployments/:id', (req, res) => {
  */
 router.get('/api/seed', asyncHandler(async (req, res) => {
   try {
-    const seedPath = path.join(process.cwd(), 'seed.json');
+    // Read seed.json from project root (shared volume)
+    const seedPath = path.join('/app/project-root', 'seed.json');
     const seedContent = await fs.readFile(seedPath, 'utf-8');
     const seedData = JSON.parse(seedContent);
     res.json(seedData);

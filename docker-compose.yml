@@ -62,6 +62,8 @@ services:
       - ./src:/app/src:ro
       - ./agent:/app/agent:ro
       - deployment_data:/app/data
+      # Share project root so seed.json can be written/read by all services
+      - .:/app/project-root:rw
     depends_on:
       - arlocal
     networks:
@@ -123,13 +125,17 @@ services:
       - ./agent/.env
     depends_on:
       - arlocal
+      - deployment-service
     networks:
       - RATi-network
     restart: unless-stopped
     volumes:
       - ./agent/logs:/usr/src/app/logs
+      # Share project root so agent can read seed.json and wallet.json
+      - .:/usr/src/app/project-root:ro
     environment:
       - NODE_ENV=production
+    working_dir: /usr/src/app
 
   # Monitoring with Prometheus (optional)
   prometheus:

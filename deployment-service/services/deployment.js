@@ -15,7 +15,8 @@ if (!globalThis.crypto) {
  */
 export async function autoDeployIfNeeded() {
   try {
-    const seedPath = path.join(process.cwd(), 'seed.json');
+    // Write seed.json to project root (shared volume)
+    const seedPath = path.join('/app/project-root', 'seed.json');
     let seedData = null;
     
     // Check if seed.json already exists

@@ -290,7 +290,17 @@ Could you please try your message again, or check if Ollama is running locally?`
                 </ReactMarkdown>
               </div>
               <div className="message-time">
-                {msg.timestamp.toLocaleTimeString()}
+                {(() => {
+                  let time = msg.timestamp;
+                  if (typeof time === 'string' || typeof time === 'number') {
+                    try {
+                      time = new Date(time);
+                    } catch (e) {
+                      return '';
+                    }
+                  }
+                  return time && typeof time.toLocaleTimeString === 'function' ? time.toLocaleTimeString() : '';
+                })()}
               </div>
             </div>
           </div>

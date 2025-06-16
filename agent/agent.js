@@ -2,25 +2,25 @@ import 'dotenv/config';
 import { createDataItemSigner, message, dryrun } from '@permaweb/aoconnect';
 import OpenAI from 'openai';
 import fs from 'fs';
-import Arweave from     // 2. Fetch the latest memory to get sequence and chain
-    const memoryQuery = `{
-      transactions(tags: [
-        {name: "Type", values: ["Agent-Memory"]},
-        {name: "Agent-Process-ID", values: ["${AO_PROCESS_ID}"]}
-      ], first: 10, sort: HEIGHT_DESC) { 
-        edges { 
-          node { 
-            id,
-            tags {
-              name,
-              value
-            }
-          } 
-        } 
-      }
-    }`;- ConfiguRATion ---
+import Arweave from 'arweave';
+
+// --- ConfiguRATion ---
+// First, try to read seed.json from project root (shared volume)
+let seedConfig = null;
+try {
+  const seedPath = './project-root/seed.json';
+  if (fs.existsSync(seedPath)) {
+    const seedContent = fs.readFileSync(seedPath, 'utf-8');
+    seedConfig = JSON.parse(seedContent);
+    console.log('✅ Loaded configuration from seed.json');
+  }
+} catch (error) {
+  console.log('⚠️  Could not read seed.json, using environment variables:', error.message);
+}
+
+// Configuration priority: seed.json > environment variables > defaults
 const { 
-  AO_PROCESS_ID, 
+  AO_PROCESS_ID = seedConfig?.genesis?.processId, 
   OPENAI_API_KEY, 
   OPENAI_API_URL = "https://api.openai.com/v1",
   POLLING_INTERVAL = 15000,
@@ -29,18 +29,24 @@ const {
   ARWEAVE_PROTOCOL = "https"
 } = process.env;
 
-if (!AO_PROCESS_ID || !OPENAI_API_KEY) {
-  console.error("Missing required environment variables. Check your .env file.");
-  console.error("Required: AO_PROCESS_ID, OPENAI_API_KEY");
-  console.error("Optional: OPENAI_API_URL (defaults to OpenAI)");
+// Use process ID from seed.json if available
+const processId = AO_PROCESS_ID || seedConfig?.genesis?.processId;
+
+if (!processId || !OPENAI_API_KEY) {
+  console.error("Missing required configuration:");
+  console.error("- Process ID: ", processId ? "✅" : "❌ (check seed.json or AO_PROCESS_ID)");
+  console.error("- OpenAI API Key: ", OPENAI_API_KEY ? "✅" : "❌ (check OPENAI_API_KEY env var)");
   process.exit(1);
 }
 
-// Check if wallet exists
-const walletPath = './wallet.json';
+// Check for wallet - try project root first, then local
+let walletPath = './project-root/wallet.json';
 if (!fs.existsSync(walletPath)) {
-  console.error("wallet.json not found in agent directory. Please copy it from the wallets/ directory.");
-  process.exit(1);
+  walletPath = './wallet.json';
+  if (!fs.existsSync(walletPath)) {
+    console.error("wallet.json not found. Please ensure it exists in project root or agent directory.");
+    process.exit(1);
+  }
 }
 
 const wallet = JSON.parse(fs.readFileSync(walletPath).toString());
@@ -69,7 +75,7 @@ let isProcessing = false;
 // --- Main Agent Lifecycle ---
 async function main() {
   console.log(`🤖 RATi AI Agent initializing...`);
-  console.log(`Process ID: ${AO_PROCESS_ID}`);
+  console.log(`Process ID: ${processId}`);
   console.log(`API URL: ${OPENAI_API_URL}`);
   
   // Load agent's soul and memories from Arweave
@@ -155,7 +161,7 @@ async function loadStateFromArweave() {
     const promptQuery = `{
       transactions(tags: [
         {name: "Type", values: ["Agent-Personality"]},
-        {name: "Agent-Process-ID", values: ["${AO_PROCESS_ID}"]}
+        {name: "Agent-Process-ID", values: ["${processId}"]}
       ], first: 1) { 
         edges { 
           node { 
@@ -187,7 +193,7 @@ async function loadStateFromArweave() {
     const memoryQuery = `{
       transactions(tags: [
         {name: "Type", values: ["Agent-Memory"]},
-        {name: "Owner-Process", values: ["${AO_PROCESS_ID}"]}
+        {name: "Owner-Process", values: ["${processId}"]}
       ], sort: HEIGHT_DESC, first: 5) { 
         edges { 
           node { 
@@ -272,7 +278,7 @@ async function formAndArchiveMemory(context, decision, actionResult) {
     tx.addTag('App-Name', 'RATi-Agent');
     tx.addTag('Content-Type', 'application/json');
     tx.addTag('Type', 'Agent-Memory');
-    tx.addTag('Owner-Process', AO_PROCESS_ID);
+    tx.addTag('Owner-Process', processId);
     tx.addTag('Sequence', agentState.sequence.toString());
     tx.addTag('Action', decision.action);
 
@@ -429,7 +435,7 @@ async function getLLMDecision(messages, recentMemories) {
 async function readInbox() {
   try {
     const result = await dryrun({
-      process: AO_PROCESS_ID,
+      process: processId,
       tags: [{ name: 'Action', value: 'Read-Inbox' }],
     });
     
