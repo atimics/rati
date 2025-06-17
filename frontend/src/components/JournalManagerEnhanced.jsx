@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './JournalManager.css';
 
@@ -26,6 +26,13 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
     }
   }, [agentData]);
 
+  // Load context data when component mounts
+  useEffect(() => {
+    if (agentData?.agent?.processId && showJournal) {
+      fetchContextData();
+    }
+  }, [agentData, showJournal]);
+
   // Save journal data to localStorage
   const saveToLocalStorage = (draft, published, history) => {
     if (agentData?.agent?.processId) {
@@ -39,7 +46,7 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
   };
 
   // Fetch context data for display
-  const fetchContextData = useCallback(async () => {
+  const fetchContextData = async () => {
     if (!agentData?.agent?.processId) return;
     
     try {
@@ -53,14 +60,7 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
     } catch (error) {
       console.error('Failed to fetch context:', error);
     }
-  }, [agentData?.agent?.processId]);
-
-  // Load context data when component mounts
-  useEffect(() => {
-    if (agentData?.agent?.processId && showJournal) {
-      fetchContextData();
-    }
-  }, [agentData?.agent?.processId, showJournal, fetchContextData]);
+  };
 
   // Generate AI journal entry using the enhanced backend
   const generateAIJournal = async () => {

@@ -4,6 +4,86 @@ import OpenAI from 'openai';
 import fs from 'fs';
 import Arweave from 'arweave';
 import AIJournal from './services/ai-journal';
+import ConversationTracker from './services/conversation-tracker.js';
+import fetch from 'node-fetch';
+
+// Deployment service configuration for journal context
+const DEPLOYMENT_SERVICE_URL = process.env.DEPLOYMENT_SERVICE_URL || 'http://deployment-service:3032';
+
+// Initialize conversation tracker
+const conversationTracker = new ConversationTracker(processId);
+
+// --- Journal Context Integration ---
+async function fetchJournalContext(processIdToUse = null) {
+  const targetProcessId = processIdToUse || processId;
+  try {
+    const response = await fetch(`${DEPLOYMENT_SERVICE_URL}/api/journal/${targetProcessId}/context`);
+    if (!response.ok) {
+      console.warn(`Failed to fetch journal context: ${response.status}`);
+      return null;
+    }
+    const result = await response.json();
+    return result.success ? result.context : null;
+  } catch (error) {
+    console.warn('Error fetching journal context:', error.message);
+    return null;
+  }
+}
+
+async function generateJournalEntry(includeContext = true) {
+  const targetProcessId = processId;
+  try {
+    // Gather enhanced context for journal generation
+    const journalContext = {
+      timeframe: '24h',
+      includeContext,
+      agentState: {
+        personality: agentState.personality?.substring(0, 500),
+        lastOracleStatus: agentState.lastOracleStatus,
+        recentInteractions: agentState.recentInteractions?.slice(-5)
+      },
+      conversationContext: conversationTracker ? {
+        recentEvents: conversationTracker.getRecentEvents(10),
+        messageCount: conversationTracker.getStats().messageCount,
+        interactionRate: conversationTracker.getStats().interactionRate
+      } : null,
+      triggerContext: {
+        isOracleTriggered: !includeContext, // When includeContext is false, it's oracle-triggered
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    const response = await fetch(`${DEPLOYMENT_SERVICE_URL}/api/journal/${targetProcessId}/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(journalContext)
+    });
+    
+    if (!response.ok) {
+      console.warn(`Failed to generate journal entry: ${response.status}`);
+      return null;
+    }
+    
+    const result = await response.json();
+    
+    // If successful and we have oracle context, enhance the journal with oracle metadata
+    if (result.success && result.journalEntry && agentState.lastOracleStatus) {
+      result.journalEntry.oracleContext = {
+        communityMood: agentState.lastOracleStatus.communityMood,
+        activeProposals: agentState.lastOracleStatus.activeProposals,
+        recentActivity: agentState.lastOracleStatus.recentActivity,
+        contextTrigger: !includeContext ? 'oracle-update' : 'periodic'
+      };
+    }
+    
+    return result.success ? result.journalEntry : null;
+  } catch (error) {
+    console.warn('Error generating journal entry:', error.message);
+    return null;
+  }
+}
 
 // --- ConfiguRATion ---
 // First, try to read seed.json from project root (shared volume)
@@ -98,6 +178,19 @@ async function main() {
       await runCycle();
     }
   }, pollingInterval);
+  
+  // Set up periodic journal generation (every 6 hours)
+  setInterval(async () => {
+    try {
+      console.log('\n📝 Generating periodic journal entry...');
+      const journalEntry = await generateJournalEntry(true);
+      if (journalEntry) {
+        console.log(`✅ Generated journal entry: ${journalEntry.content?.substring(0, 100)}...`);
+      }
+    } catch (error) {
+      console.warn('Failed to generate periodic journal entry:', error.message);
+    }
+  }, 6 * 60 * 60 * 1000); // 6 hours in milliseconds
 }
 
 async function runCycle() {
@@ -121,6 +214,34 @@ async function runCycle() {
 
     console.log(`Found ${newMessages.length} new message(s).`);
 
+    // Check for oracle updates in the messages
+    const oracleUpdates = newMessages.filter(m => 
+      m.tags && m.tags.some(tag => tag.name === 'Action' && tag.value === 'Oracle-Update')
+    );
+
+    if (oracleUpdates.length > 0) {
+      console.log(`📮 Processing ${oracleUpdates.length} oracle update(s)`);
+      for (const update of oracleUpdates) {
+        await handleOracleUpdate(update);
+      }
+    }
+
+    // Track conversations for journal context
+    newMessages.forEach(msg => {
+      try {
+        conversationTracker.addMessage({
+          content: msg.data || msg.text || 'No content',
+          from: msg.from || 'unknown',
+          to: processId,
+          messageType: msg.type || 'chat',
+          processId: processId,
+          tags: msg.tags || []
+        });
+      } catch (trackingError) {
+        console.warn('Error tracking conversation:', trackingError.message);
+      }
+    });
+
     // 2. Consult the LLM Brain with personality and recent memories
     const decision = await getLLMDecision(newMessages, agentState.memoryChain);
     console.log(`Decision: ${decision.action}`);
@@ -130,9 +251,28 @@ async function runCycle() {
     if (decision.action === "SEND_MESSAGE" && decision.target && decision.data) {
       console.log(`Sending message to ${decision.target.substring(0, 12)}...`);
       actionResult = await sendMessage(decision.target, decision.data);
+      
+      // Track outgoing message
+      if (actionResult) {
+        conversationTracker.addMessage({
+          content: decision.data,
+          from: processId,
+          to: decision.target,
+          messageType: 'reply',
+          processId,
+          tags: ['outgoing', 'agent-response']
+        });
+      }
     } else if (decision.action === "PROPOSE" && decision.data) {
       console.log(`Creating proposal: ${decision.data.substring(0, 50)}...`);
       actionResult = await createProposal(decision.data);
+      
+      // Track proposal creation
+      conversationTracker.addSystemEvent({
+        type: 'proposal_created',
+        details: { content: decision.data.substring(0, 100) },
+        impact: 'medium'
+      });
     } else if (decision.action === "DO_NOTHING") {
       console.log("Standing by.");
     }
@@ -149,6 +289,67 @@ async function runCycle() {
     console.error("An error occurred during the cycle:", error.message);
   } finally {
     isProcessing = false;
+  }
+}
+
+// --- Oracle Update Handling ---
+
+async function handleOracleUpdate(updateMessage) {
+  try {
+    console.log(`🔮 Processing oracle update from processor`);
+    
+    // Parse the oracle update data
+    let updateData = {};
+    try {
+      updateData = JSON.parse(updateMessage.data || '{}');
+    } catch (parseError) {
+      console.warn('Could not parse oracle update data:', parseError.message);
+      return;
+    }
+
+    // Store oracle context for decision making
+    if (updateData.oracleStatus) {
+      agentState.lastOracleStatus = {
+        ...updateData.oracleStatus,
+        lastUpdate: new Date().toISOString()
+      };
+      
+      console.log(`📊 Oracle status updated: ${updateData.oracleStatus.communityMood || 'unknown'} mood, ${updateData.oracleStatus.activeProposals || 0} active proposals`);
+    }
+
+    // Track oracle update as system event
+    try {
+      conversationTracker.addSystemEvent({
+        type: 'oracle_update_received',
+        details: {
+          updateType: updateData.type || 'context-refresh',
+          oracleStatus: updateData.oracleStatus,
+          processorInfo: updateData.processorInfo
+        },
+        impact: 'medium'
+      });
+    } catch (trackingError) {
+      console.warn('Error tracking oracle update:', trackingError.message);
+    }
+
+    // If there are significant community changes, generate a journal entry
+    if (updateData.oracleStatus && 
+        (updateData.oracleStatus.activeProposals > 0 || 
+         updateData.oracleStatus.communityMood !== 'contemplative')) {
+      
+      try {
+        console.log('📝 Oracle status changed, generating contextual journal entry...');
+        const journalEntry = await generateJournalEntry(false); // Don't include full context to avoid recursion
+        if (journalEntry) {
+          console.log(`✅ Oracle-triggered journal entry created: ${journalEntry.content?.substring(0, 80)}...`);
+        }
+      } catch (journalError) {
+        console.warn('Failed to generate oracle-triggered journal entry:', journalError.message);
+      }
+    }
+
+  } catch (error) {
+    console.error('Error handling oracle update:', error);
   }
 }
 
@@ -353,8 +554,23 @@ function getAvailableModel() {
 }
 
 async function getLLMDecision(messages, recentMemories) {
+  // Fetch journal context to enrich the AI's understanding
+  const journalContext = await fetchJournalContext();
+  
+  let contextSection = '';
+  if (journalContext) {
+    contextSection = `
+    ---
+    CURRENT JOURNAL CONTEXT:
+    Seed Data: ${JSON.stringify(journalContext.seed?.agent?.prompt?.substring(0, 300) || 'No seed data', null, 2)}
+    Oracle Scrolls: ${JSON.stringify(journalContext.oracleScrolls || {}, null, 2)}
+    Recent Activity: ${JSON.stringify(journalContext.recentActivity || {}, null, 2)}
+    `;
+  }
+
   const prompt = `
     ${agentState.personality}
+    ${contextSection}
 
     ---
     RECENT MEMORIES (for context and continuity):
@@ -366,8 +582,8 @@ async function getLLMDecision(messages, recentMemories) {
     
     ---
 
-    Based on your constitution, recent memories, and new messages, decide on one single action.
-    Consider your role as an archivist and community chronicler.
+    Based on your constitution, journal context, recent memories, and new messages, decide on one single action.
+    Consider your role as an archivist and community chronicler with access to the full RATi ecosystem context.
     
     Your available actions are:
     1. SEND_MESSAGE: Reply to specific messages or participants
@@ -376,10 +592,11 @@ async function getLLMDecision(messages, recentMemories) {
 
     Guidelines:
     - Be helpful and encouraging as per your constitution
-    - Reference your memories and community lore when relevant
+    - Reference your memories, oracle scrolls, and community lore when relevant
     - Keep responses under 200 characters unless creating formal summaries
     - Only propose something meaningful that adds value
     - Announce if you're creating a memory entry
+    - Use the journal context to provide richer, more informed responses
 
     Respond with ONLY a JSON object:
     {
@@ -510,6 +727,9 @@ process.on('SIGTERM', () => {
   console.log(`📊 Final state: ${agentState.sequence} memories archived`);
   process.exit(0);
 });
+
+// Start metrics server
+require('./metrics-server.js');
 
 main().catch(console.error);
 
@@ -1021,45 +1241,17 @@ class Agent {
   }
 
   /**
-   * Enhanced message handling with journal logging
+   * Enhanced message handling
    */
   async handleMessage(messageData) {
     try {
-      // Log message to journal context
-      this.journal.addMessage({
-        content: messageData.content,
-        sender: messageData.sender,
-        context: {
-          messageId: messageData.id,
-          timestamp: messageData.timestamp
-        }
-      });
-
+      console.log('Processing message:', messageData);
+      
       // ...existing message handling code...
       
-      // Log significant events
-      this.journal.addSystemEvent({
-        type: 'message_processed',
-        details: {
-          messageId: messageData.id,
-          sender: messageData.sender,
-          responseGenerated: true
-        },
-        impact: 'minor'
-      });
-
       return response;
     } catch (error) {
-      // Log errors as system events
-      this.journal.addSystemEvent({
-        type: 'message_error',
-        details: {
-          error: error.message,
-          messageId: messageData.id
-        },
-        impact: 'major'
-      });
-      
+      console.error('Message processing error:', error);
       throw error;
     }
   }
@@ -1101,30 +1293,13 @@ class Agent {
     return await this.journal.getRecentJournalEntries(count);
   }
 
-  /**
-   * Enhanced startup with journal event
-   */
+// Enhanced agent startup
   async start() {
     try {
       // ...existing startup code...
-      
-      // Log startup event
-      this.journal.addSystemEvent({
-        type: 'agent_started',
-        details: {
-          processId: this.processId,
-          timestamp: new Date().toISOString()
-        },
-        impact: 'major'
-      });
-      
-      console.log('Agent started with AI journaling enabled');
+      console.log('Agent started successfully');
     } catch (error) {
-      this.journal.addSystemEvent({
-        type: 'startup_error',
-        details: { error: error.message },
-        impact: 'critical'
-      });
+      console.error('Agent startup error:', error);
       throw error;
     }
   }

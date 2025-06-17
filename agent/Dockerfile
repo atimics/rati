@@ -12,15 +12,14 @@ RUN npm install
 
 # Copy the agent's source code and dependencies into the container
 # IMPORTANT: The wallet.json must exist in the /agent directory before building!
-COPY agent.js .
-COPY wallet.json .
-COPY lib/ ./lib/
+COPY . .
 
-# Expose no ports (this agent only makes outbound connections)
+# Expose metrics port
+EXPOSE 3003
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "console.log('Agent health check passed')" || exit 1
 
 # Command to run the agent when the container starts
-CMD ["node", "agent.js"]
+CMD ["node", "index.js"]

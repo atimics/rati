@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import JournalManager from './JournalManager';
+import JournalInterface from './JournalInterface';
 import './ChatInterface.css';
 
 // Ollama configuration
@@ -15,14 +15,12 @@ const ChatInterface = ({ agentData }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [currentModel, setCurrentModel] = useState(MODEL_NAME);
-  const [journalDraft, setJournalDraft] = useState('');
-  const [publishedJournal, setPublishedJournal] = useState('');
+  const [showJournal, setShowJournal] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Handle journal updates from JournalManager
-  const handleJournalUpdate = (draft, published) => {
-    setJournalDraft(draft);
-    setPublishedJournal(published);
+  // Toggle journal interface
+  const toggleJournal = () => {
+    setShowJournal(!showJournal);
   };
 
   // Initialize with agent greeting and check Ollama
@@ -135,20 +133,10 @@ What would you like to talk about?`,
     
     let enhancedPrompt = `${baseSeed}\n\n`;
     
-    // Add published journal (persistent memory)
-    if (publishedJournal) {
-      enhancedPrompt += `## YOUR PUBLISHED MEMORY JOURNAL:\n${publishedJournal}\n\n`;
-    }
-    
     // Add recent chat context
     if (messages.length > 0) {
       const chatContext = summarizeChatHistory(messages);
       enhancedPrompt += `## RECENT CONVERSATION CONTEXT:\n${chatContext}\n\n`;
-    }
-    
-    // Add draft journal thoughts (if any)
-    if (journalDraft) {
-      enhancedPrompt += `## YOUR CURRENT THOUGHTS (DRAFT):\n${journalDraft}\n\n`;
     }
     
     enhancedPrompt += `## CURRENT INTERACTION:\nUser: ${userMessage}\nAssistant:`;
@@ -295,7 +283,7 @@ Could you please try your message again, or check if Ollama is running locally?`
                   if (typeof time === 'string' || typeof time === 'number') {
                     try {
                       time = new Date(time);
-                    } catch (e) {
+                    } catch {
                       return '';
                     }
                   }
@@ -343,6 +331,13 @@ Could you please try your message again, or check if Ollama is running locally?`
             }}
           />
           <button
+            onClick={toggleJournal}
+            className="journal-button"
+            title="Open Journal Interface"
+          >
+            📝
+          </button>
+          <button
             onClick={sendMessage}
             disabled={!inputText.trim() || isLoading}
             className="send-button"
@@ -352,11 +347,15 @@ Could you please try your message again, or check if Ollama is running locally?`
         </div>
       </div>
 
-      {/* Journal Manager */}
-      <JournalManager 
+      {/* Journal Interface */}
+      <JournalInterface 
+        chatHistory={messages}
+        isVisible={showJournal}
+        onClose={() => setShowJournal(false)}
+        ollamaBaseUrl={OLLAMA_BASE_URL}
+        currentModel={currentModel}
+        connectionStatus={connectionStatus}
         agentData={agentData}
-        messages={messages}
-        onJournalUpdate={handleJournalUpdate}
       />
     </div>
   );

@@ -1,6 +1,6 @@
-const { generateCompletion } = require('./ai-provider');
-const fs = require('fs').promises;
-const path = require('path');
+import { generateCompletion } from './ai-provider.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 class AIJournal {
   constructor(agentId, config = {}) {
@@ -438,4 +438,4 @@ RECENT ACTIVITY SUMMARY:
   }
 }
 
-module.exports = AIJournal;
+export default AIJournal;

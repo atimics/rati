@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 /**
  * Simple JWT authentication middleware
@@ -71,8 +71,47 @@ function rateLimiter(req, res, next) {
   next();
 }
 
-module.exports = {
+/**
+ * ArConnect transaction verification middleware
+ */
+function verifyArweaveTransaction(req, res, next) {
+  // Skip verification for non-deployment requests
+  if (!req.body || !req.body.transaction) {
+    return next();
+  }
+
+  const transaction = req.body.transaction;
+  
+  // Basic transaction structure validation
+  if (!transaction.id || !transaction.signature) {
+    return res.status(400).json({ 
+      error: 'Invalid transaction structure',
+      details: 'Transaction must include id and signature' 
+    });
+  }
+
+  // Validate transaction ID format (43 characters, base64url)
+  if (transaction.id.length !== 43 || !/^[A-Za-z0-9_-]{43}$/.test(transaction.id)) {
+    return res.status(400).json({ 
+      error: 'Invalid transaction ID format',
+      details: 'Transaction ID must be 43 characters base64url encoded' 
+    });
+  }
+
+  // Validate signature presence
+  if (!transaction.signature || transaction.signature.length === 0) {
+    return res.status(400).json({ 
+      error: 'Transaction not signed',
+      details: 'Transaction signature is missing or empty. Please ensure the transaction was properly signed by ArConnect.' 
+    });
+  }
+
+  next();
+}
+
+export {
   authenticateToken,
   validateInput,
-  rateLimiter
+  rateLimiter,
+  verifyArweaveTransaction
 };

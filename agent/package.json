@@ -9,7 +9,7 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "start": "node agent.js",
+    "start": "node start.js",
     "dev": "nodemon agent.js",
     "lint": "eslint *.js --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
@@ -22,7 +22,9 @@
     "arweave": "^1.15.7",
     "dotenv": "^16.4.5",
     "node-fetch": "^3.3.2",
-    "openai": "^4.65.0"
+    "openai": "^4.65.0",
+    "express": "^4.19.2",
+    "prom-client": "^15.1.0"
   },
   "devDependencies": {
     "eslint": "^9.25.0",

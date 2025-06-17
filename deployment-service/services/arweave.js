@@ -161,3 +161,75 @@ export async function mintTokens(address, amount) {
     );
   }
 }
+
+/**
+ * Validate transaction signature and structure
+ */
+export async function validateTransaction(transaction) {
+  try {
+    // Check basic structure
+    if (!transaction.id || !transaction.signature) {
+      throw new ApiError(
+        'Invalid transaction structure',
+        'INVALID_TRANSACTION',
+        400,
+        { transaction: { id: transaction.id, hasSignature: !!transaction.signature } },
+        [
+          'Ensure transaction has valid id and signature',
+          'Transaction may not have been properly signed by wallet',
+          'Try signing the transaction again'
+        ]
+      );
+    }
+
+    // Validate signature format
+    if (typeof transaction.signature !== 'string' || transaction.signature.length === 0) {
+      throw new ApiError(
+        'Invalid transaction signature',
+        'INVALID_SIGNATURE',
+        400,
+        { signatureType: typeof transaction.signature, signatureLength: transaction.signature?.length },
+        [
+          'Transaction signature must be a non-empty string',
+          'Ensure wallet properly signed the transaction',
+          'ArConnect may have failed to sign - try again'
+        ]
+      );
+    }
+
+    // Use Arweave's built-in transaction verification
+    const isValid = await arweave.transactions.verify(transaction);
+    
+    if (!isValid) {
+      throw new ApiError(
+        'Transaction signature verification failed',
+        'SIGNATURE_VERIFICATION_FAILED',
+        400,
+        { transactionId: transaction.id },
+        [
+          'Transaction signature is invalid',
+          'Transaction may have been tampered with',
+          'Re-sign the transaction with your wallet'
+        ]
+      );
+    }
+
+    return { valid: true, transactionId: transaction.id };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    throw new ApiError(
+      'Transaction validation failed',
+      'VALIDATION_ERROR',
+      500,
+      { originalError: error.message },
+      [
+        'Check transaction format and signature',
+        'Ensure transaction was properly created and signed',
+        'Try the operation again'
+      ]
+    );
+  }
+}

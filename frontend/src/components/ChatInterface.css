@@ -226,6 +226,27 @@
   cursor: not-allowed;
 }
 
+.journal-button {
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: background-color 0.2s;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.journal-button:hover {
+  background: #047857;
+}
+
 .loading-state {
   display: flex;
   flex-direction: column;

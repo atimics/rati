@@ -15,8 +15,10 @@ import arweaveRoutes from './routes/arweave.js';
 import deploymentRoutes from './routes/deployments.js';
 import agentRoutes from './routes/agent.js';
 
-// Journal routes
+// Consolidated routes
 import journalRoutes from './routes/journal.js';
+import oracleRoutes from './routes/oracle.js';
+import agentProcessorRoutes from './routes/agent-processor.js';
 
 // Polyfill crypto for ao-connect in containerized environments
 if (!globalThis.crypto) {
@@ -108,7 +110,25 @@ app.use('/', healthRoutes);
 app.use('/', arweaveRoutes);
 app.use('/', deploymentRoutes);
 app.use('/', agentRoutes);
-app.use('/journal', journalRoutes);
+app.use('/', journalRoutes);
+app.use('/', oracleRoutes);
+app.use('/', agentProcessorRoutes);
+
+// Metrics
+import { register, collectHttpMetrics } from './metrics.js';
+
+// Use metrics middleware
+app.use(collectHttpMetrics);
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (error) {
+    res.status(500).end(error);
+  }
+});
 
 // 404 handler for undefined routes
 app.use('*', (req, res) => {

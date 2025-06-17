@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './JournalManager.css';
 
@@ -38,30 +38,6 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
     }
   };
 
-  // Fetch context data for display
-  const fetchContextData = useCallback(async () => {
-    if (!agentData?.agent?.processId) return;
-    
-    try {
-      const response = await fetch(`http://localhost:3032/api/journal/${agentData.agent.processId}/context`);
-      if (!response.ok) throw new Error('Failed to fetch context');
-      
-      const result = await response.json();
-      if (result.success) {
-        setContextData(result.context);
-      }
-    } catch (error) {
-      console.error('Failed to fetch context:', error);
-    }
-  }, [agentData?.agent?.processId]);
-
-  // Load context data when component mounts
-  useEffect(() => {
-    if (agentData?.agent?.processId && showJournal) {
-      fetchContextData();
-    }
-  }, [agentData?.agent?.processId, showJournal, fetchContextData]);
-
   // Generate AI journal entry using the enhanced backend
   const generateAIJournal = async () => {
     if (!agentData?.agent?.processId) return;
@@ -86,13 +62,10 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
         setGeneratedEntry(result.journalEntry);
         setContextData(result.context);
         
-        // Add to draft with proper formatting
-        const newDraft = draftJournal + 
-          (draftJournal ? '\n\n---\n\n' : '') +
-          `## 🤖 AI Generated Entry - ${new Date().toLocaleDateString()}\n\n` +
-          result.journalEntry.content + '\n\n' +
-          `*Generated with ${result.journalEntry.metadata?.wordCount || 0} words, mood: ${result.journalEntry.metadata?.mood || 'reflective'}*`;
-        
+        // Optionally add to draft
+        const newDraft = draftJournal + '\n\n' + 
+          `## AI Generated Entry - ${new Date().toLocaleDateString()}\n\n` +
+          result.journalEntry.content;
         setDraftJournal(newDraft);
         saveToLocalStorage(newDraft, publishedJournal, journalHistory);
         onJournalUpdate(newDraft, publishedJournal);
@@ -105,8 +78,29 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
     }
   };
 
-  // Generate daily summary from messages (legacy function, kept for compatibility)
-  const generateDailySummary = () => {
+  // Fetch context data for display
+  const fetchContextData = async () => {
+    if (!agentData?.agent?.processId) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3032/api/journal/${agentData.agent.processId}/context`);
+      if (!response.ok) throw new Error('Failed to fetch context');
+      
+      const result = await response.json();
+      if (result.success) {
+        setContextData(result.context);
+      }
+    } catch (error) {
+      console.error('Failed to fetch context:', error);
+    }
+  };
+
+  // Load context data when component mounts
+  useEffect(() => {
+    if (agentData?.agent?.processId && showJournal) {
+      fetchContextData();
+    }
+  }, [agentData, showJournal]);
     const today = new Date().toDateString();
     const todayMessages = messages.filter(msg => 
       new Date(msg.timestamp).toDateString() === today
@@ -147,7 +141,7 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
     return summary;
   };
 
-  // Update draft journal with daily summary
+  // Update draft journal
   const updateDraft = () => {
     const dailySummary = generateDailySummary();
     const updatedDraft = draftJournal + '\n\n' + dailySummary;
@@ -204,8 +198,6 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
       setDraftJournal('');
       setPublishedJournal('');
       setJournalHistory([]);
-      setContextData(null);
-      setGeneratedEntry(null);
       localStorage.removeItem(`journal_${agentData.agent.processId}`);
       onJournalUpdate('', '');
     }
@@ -227,52 +219,7 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
           <div className="journal-header">
             <h3>🧠 Agent Memory Journal</h3>
             <span className="process-id">Process: {agentData.agent.processId.slice(0, 8)}...</span>
-            <button 
-              className="context-toggle"
-              onClick={() => setShowContext(!showContext)}
-            >
-              {showContext ? '🔽' : '▶️'} Context
-            </button>
           </div>
-
-          {showContext && contextData && (
-            <div className="context-panel">
-              <h4>🌟 Agent Context</h4>
-              
-              {contextData.seed && (
-                <div className="context-section">
-                  <h5>🌱 Genesis Seed</h5>
-                  <div className="context-content">
-                    <pre>{JSON.stringify(contextData.seed, null, 2)}</pre>
-                  </div>
-                </div>
-              )}
-
-              {contextData.oracleScrolls && (
-                <div className="context-section">
-                  <h5>📜 Oracle Scrolls</h5>
-                  {Object.entries(contextData.oracleScrolls).map(([name, content]) => (
-                    <div key={name} className="scroll-content">
-                      <h6>{name}</h6>
-                      <ReactMarkdown>{content}</ReactMarkdown>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {contextData.recentActivity && (
-                <div className="context-section">
-                  <h5>⚡ Recent Activity</h5>
-                  <div className="activity-stats">
-                    <div>Messages: {contextData.recentActivity.messageCount}</div>
-                    <div>Interactions: {contextData.recentActivity.interactions}</div>
-                    <div>Topics: {contextData.recentActivity.topics.join(', ')}</div>
-                    <div>Last Active: {new Date(contextData.recentActivity.lastActiveTime).toLocaleString()}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="journal-stats">
             <div className="stat">
@@ -287,24 +234,11 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
               <span className="stat-label">Draft Length</span>
               <span className="stat-value">{draftJournal.length} chars</span>
             </div>
-            {generatedEntry && (
-              <div className="stat">
-                <span className="stat-label">Last Generated</span>
-                <span className="stat-value">{generatedEntry.metadata?.wordCount || 0} words</span>
-              </div>
-            )}
           </div>
 
           <div className="journal-actions">
-            <button 
-              onClick={generateAIJournal} 
-              disabled={isGenerating}
-              className="action-btn ai-generate"
-            >
-              {isGenerating ? '🤖 Generating...' : '🤖 AI Journal Entry'}
-            </button>
             <button onClick={updateDraft} className="action-btn primary">
-              ➕ Daily Summary
+              ➕ Add Daily Summary
             </button>
             <button 
               onClick={publishToArweave} 
@@ -326,37 +260,17 @@ const JournalManager = ({ agentData, messages, onJournalUpdate }) => {
                 onChange={(e) => {
                   setDraftJournal(e.target.value);
                   saveToLocalStorage(e.target.value, publishedJournal, journalHistory);
-                  onJournalUpdate(e.target.value, publishedJournal);
                 }}
-                placeholder="Your agent's thoughts, experiences, and reflections will appear here. Use the AI Journal Entry button to generate deep, contextual reflections based on the oracle scrolls and recent activity."
-                rows={12}
+                placeholder="Write about your experiences, learnings, and thoughts..."
+                rows={8}
               />
             </div>
-
-            {generatedEntry && (
-              <div className="generated-section">
-                <h4>🤖 Latest AI Generated Entry</h4>
-                <div className="generated-content">
-                  <ReactMarkdown>{generatedEntry.content}</ReactMarkdown>
-                  {generatedEntry.metadata && (
-                    <div className="entry-metadata">
-                      <small>
-                        Generated: {new Date(generatedEntry.metadata.generatedAt).toLocaleString()} | 
-                        Words: {generatedEntry.metadata.wordCount} | 
-                        Mood: {generatedEntry.metadata.mood} | 
-                        Topics: {generatedEntry.metadata.topics.join(', ')}
-                      </small>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {publishedJournal && (
               <div className="published-section">
                 <h4>🌐 Published Journal (On Arweave)</h4>
                 <div className="published-content">
-                  <ReactMarkdown>{publishedJournal.substring(0, 1000)}...</ReactMarkdown>
+                  <ReactMarkdown>{publishedJournal.substring(0, 500)}...</ReactMarkdown>
                 </div>
               </div>
             )}

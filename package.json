@@ -18,6 +18,7 @@
     "deploy:processes": "node scripts/deploy-processes.js",
     "deploy:enhanced": "node scripts/enhanced-deploy.js",
     "deploy:full": "node scripts/enhanced-deploy.js full",
+    "deploy:frontend": "node scripts/deploy-frontend.js",
     "test-arweave": "node scripts/test-arweave.js",
     "summon-avatar": "./summon-avatar.sh",
     "start-arlocal": "docker-compose up -d arlocal",
@@ -66,7 +67,8 @@
   "dependencies": {
     "@permaweb/aoconnect": "^0.0.85",
     "arweave": "^1.15.7",
-    "arlocal": "^1.1.62"
+    "arlocal": "^1.1.62",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "eslint": "^9.25.0",
