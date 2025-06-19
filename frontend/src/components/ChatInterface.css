@@ -135,11 +135,17 @@
   border: 1px solid #374151;
   border-radius: 8px;
   padding: 12px;
-  margin: 8px 0;
+  margin: 1rem 0;
   overflow-x: auto;
 }
 
 .code-block code {
+  color: #e5e7eb;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.9em;
+}
+
+.block-code {
   color: #e5e7eb;
   font-family: 'Monaco', 'Consolas', monospace;
   font-size: 0.9em;
@@ -286,4 +292,53 @@
     transform: translateY(-10px);
     opacity: 1;
   }
+}
+
+/* Conversation Summary Styles */
+.conversation-summary {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  margin: 1rem;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.summary-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.summary-count {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  background: #374151;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+}
+
+.summary-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #d1d5db;
+  font-style: italic;
+}
+
+.summary-text:empty::before {
+  content: "Conversation summary will appear after 10+ messages...";
+  color: #6b7280;
 }

@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import JournalInterface from './JournalInterface';
+import AIService from '../services/AIService.js';
+import ConversationSummarizer from '../services/ConversationSummarizer.js';
 import './ChatInterface.css';
 
 // Ollama configuration
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-const MODEL_NAME = 'gemma2:2b'; // Fallback to gemma2:2b if gemma3 not available
+const MODEL_NAME = 'gemma3'; // Fallback to gemma3 if gemma3 not available
 
 const ChatInterface = ({ agentData }) => {
   const [messages, setMessages] = useState([]);
@@ -15,13 +16,8 @@ const ChatInterface = ({ agentData }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [currentModel, setCurrentModel] = useState(MODEL_NAME);
-  const [showJournal, setShowJournal] = useState(false);
+  const [conversationSummary, setConversationSummary] = useState('');
   const messagesEndRef = useRef(null);
-
-  // Toggle journal interface
-  const toggleJournal = () => {
-    setShowJournal(!showJournal);
-  };
 
   // Initialize with agent greeting and check Ollama
   useEffect(() => {
@@ -35,6 +31,12 @@ const ChatInterface = ({ agentData }) => {
         } catch (e) {
           console.error('Failed to load saved messages:', e);
         }
+      }
+
+      // Load conversation summary
+      const summaryData = ConversationSummarizer.loadSummary(agentData.agent.processId);
+      if (summaryData?.summary) {
+        setConversationSummary(summaryData.summary);
       }
 
       // If no saved messages, show greeting
@@ -54,45 +56,37 @@ What would you like to talk about?`,
       }
       
       setConnectionStatus('connected');
-      checkOllamaConnection();
+      checkAIConnection();
     }
   }, [agentData]);
 
-  // Check Ollama connection and available models
-  const checkOllamaConnection = async () => {
+  // Check AI connection and available models using AIService
+  const checkAIConnection = async () => {
     try {
-      const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
-      if (response.ok) {
-        const data = await response.json();
-        const models = data.models || [];
-        
-        // Prefer gemma3, fallback to gemma2:2b
-        if (models.some(m => m.name.includes('gemma3'))) {
-          const gemma3Model = models.find(m => m.name.includes('gemma3')).name;
-          setCurrentModel(gemma3Model);
-          console.log(`Using ${gemma3Model} model`);
-        } else if (models.some(m => m.name.includes('gemma2'))) {
-          const gemma2Model = models.find(m => m.name.includes('gemma2')).name;
-          setCurrentModel(gemma2Model);
-          console.log(`Using ${gemma2Model} model`);
-        } else {
-          console.warn('No Gemma models found. Please install gemma3 or gemma2:2b');
-        }
+      const connectionResult = await AIService.checkConnection();
+      if (connectionResult.connected) {
         setConnectionStatus('connected');
+        setCurrentModel(connectionResult.model);
+        console.log(`Using ${connectionResult.model} model`);
       } else {
-        setConnectionStatus('disconnected');
-        console.error('Ollama not available');
+        setConnectionStatus('error');
+        console.error('AI not available:', connectionResult.error);
       }
     } catch (error) {
-      setConnectionStatus('disconnected');
-      console.error('Error connecting to Ollama:', error);
+      console.error('AI connection check failed:', error);
+      setConnectionStatus('error');
     }
   };
 
-  // Save messages to localStorage whenever messages change
+  // Save messages to localStorage and update summary when messages change
   useEffect(() => {
     if (agentData?.agent?.processId && messages.length > 0) {
       localStorage.setItem(`messages_${agentData.agent.processId}`, JSON.stringify(messages));
+      
+      // Update conversation summary every 10 messages
+      if (ConversationSummarizer.shouldUpdateSummary(messages.length)) {
+        updateConversationSummary();
+      }
     }
   }, [messages, agentData]);
 
@@ -101,48 +95,20 @@ What would you like to talk about?`,
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Save messages to localStorage whenever they change
-  useEffect(() => {
-    if (agentData?.agent?.processId && messages.length > 0) {
-      localStorage.setItem(`messages_${agentData.agent.processId}`, JSON.stringify(messages));
+  // Update conversation summary
+  const updateConversationSummary = useCallback(async () => {
+    if (!agentData?.agent?.processId) return;
+    
+    try {
+      const currentSummary = ConversationSummarizer.loadSummary(agentData.agent.processId)?.summary || '';
+      const newSummary = await ConversationSummarizer.updateSummary(messages, currentSummary);
+      
+      setConversationSummary(newSummary);
+      ConversationSummarizer.saveSummary(agentData.agent.processId, newSummary, messages.length);
+    } catch (error) {
+      console.error('Failed to update conversation summary:', error);
     }
-  }, [messages, agentData?.agent?.processId]);
-
-  // Function to chunk and summarize long chat histories
-  const summarizeChatHistory = (messages, maxLength = 2000) => {
-    const recentMessages = messages.slice(-10); // Always keep last 10 messages
-    const recentText = recentMessages.map(m => `${m.type}: ${m.content}`).join('\n');
-    
-    if (recentText.length <= maxLength) {
-      return recentText;
-    }
-    
-    // If still too long, create a summary
-    const summary = `[SUMMARY] Recent conversation covered ${messages.length} messages about: ` +
-      messages.slice(-5).map(m => m.content.substring(0, 50) + '...').join('; ') +
-      '\n\n[RECENT MESSAGES]\n' +
-      recentMessages.slice(-3).map(m => `${m.type}: ${m.content}`).join('\n');
-    
-    return summary.substring(0, maxLength);
-  };
-
-  // Construct enhanced system prompt with journal and chat history
-  const buildSystemPrompt = (userMessage) => {
-    const baseSeed = agentData.agent.prompt || 
-      `You are a RATi Digital Avatar, an autonomous AI entity living on the Arweave permanent web. You embody creativity, curiosity, and collaboration.`;
-    
-    let enhancedPrompt = `${baseSeed}\n\n`;
-    
-    // Add recent chat context
-    if (messages.length > 0) {
-      const chatContext = summarizeChatHistory(messages);
-      enhancedPrompt += `## RECENT CONVERSATION CONTEXT:\n${chatContext}\n\n`;
-    }
-    
-    enhancedPrompt += `## CURRENT INTERACTION:\nUser: ${userMessage}\nAssistant:`;
-    
-    return enhancedPrompt;
-  };
+  }, [agentData?.agent?.processId, messages]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading || !agentData?.agent) return;
@@ -159,54 +125,43 @@ What would you like to talk about?`,
     setIsLoading(true);
 
     try {
-      // Use enhanced system prompt with journal and chat context
-      const enhancedPrompt = buildSystemPrompt(userMessage.content);
-      
-      const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Use AIService for consolidated generation
+      const result = await AIService.generateChatResponse(
+        userMessage.content,
+        messages,
+        agentData,
+        {
           model: currentModel,
-          prompt: enhancedPrompt,
-          stream: false,
-          options: {
-            temperature: 0.7,
-            top_p: 0.9,
-            max_tokens: 500
-          }
-        })
-      });
+          temperature: 0.7,
+          maxTokens: 500
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`Ollama API error: ${response.status}`);
+      let agentResponse;
+      if (result.success && result.text) {
+        agentResponse = result.text.trim();
+      } else {
+        // Use AIService fallback
+        agentResponse = AIService.generateFallbackChatResponse(userMessage.content, agentData);
       }
-
-      const data = await response.json();
-      const agentResponse = data.response || 'I apologize, but I had trouble generating a response. Please try again!';
 
       const agentMessage = {
         id: Date.now() + 1,
         type: 'agent',
-        content: agentResponse.trim(),
+        content: agentResponse,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, agentMessage]);
 
     } catch (error) {
-      console.error('Error with Ollama:', error);
+      console.error('Error with AI generation:', error);
       
-      // Fallback response that still uses agent personality
+      // Fallback response using AIService
       const fallbackMessage = {
         id: Date.now() + 1,
         type: 'agent',
-        content: `I understand you said: "${userMessage.content}"
-
-As your RATi digital avatar, I'm experiencing some technical difficulties with my AI processing right now. I'm running on Arweave with process ID \`${agentData.agent.processId}\`, but my Ollama connection seems to have an issue.
-
-Could you please try your message again, or check if Ollama is running locally?`,
+        content: AIService.generateFallbackChatResponse(userMessage.content, agentData),
         timestamp: new Date()
       };
 
@@ -223,12 +178,15 @@ Could you please try your message again, or check if Ollama is running locally?`
     }
   };
 
-  if (!agentData) {
+  // Debug: Log agentData to see what we're receiving
+  console.log('ChatInterface: agentData received:', agentData);
+  
+  if (!agentData || !agentData.agent) {
     return (
       <div className="chat-interface">
         <div className="loading-state">
           <div className="spinner"></div>
-          <p>Loading agent...</p>
+          <p>Loading agent... (agentData: {agentData ? 'present but invalid' : 'missing'})</p>
         </div>
       </div>
     );
@@ -247,6 +205,18 @@ Could you please try your message again, or check if Ollama is running locally?`
         </div>
       </div>
 
+      {conversationSummary && (
+        <div className="conversation-summary">
+          <div className="summary-header">
+            <h4>📋 Conversation Summary</h4>
+            <span className="summary-count">{messages.length} messages</span>
+          </div>
+          <div className="summary-text">
+            {conversationSummary}
+          </div>
+        </div>
+      )}
+
       <div className="messages-container">
         {messages.map((msg) => (
           <div key={msg.id} className={`message ${msg.type}`}>
@@ -261,15 +231,22 @@ Could you please try your message again, or check if Ollama is running locally?`
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   components={{
-                    code({ inline, children, ...props }) {
+                    pre({ children, ...props }) {
+                      return (
+                        <pre className="code-block" {...props}>
+                          {children}
+                        </pre>
+                      );
+                    },
+                    code({ inline, children, className, ...props }) {
                       return inline ? (
                         <code className="inline-code" {...props}>
                           {children}
                         </code>
                       ) : (
-                        <pre className="code-block">
-                          <code {...props}>{children}</code>
-                        </pre>
+                        <code className={`block-code ${className || ''}`} {...props}>
+                          {children}
+                        </code>
                       );
                     }
                   }}
@@ -331,13 +308,6 @@ Could you please try your message again, or check if Ollama is running locally?`
             }}
           />
           <button
-            onClick={toggleJournal}
-            className="journal-button"
-            title="Open Journal Interface"
-          >
-            📝
-          </button>
-          <button
             onClick={sendMessage}
             disabled={!inputText.trim() || isLoading}
             className="send-button"
@@ -346,17 +316,6 @@ Could you please try your message again, or check if Ollama is running locally?`
           </button>
         </div>
       </div>
-
-      {/* Journal Interface */}
-      <JournalInterface 
-        chatHistory={messages}
-        isVisible={showJournal}
-        onClose={() => setShowJournal(false)}
-        ollamaBaseUrl={OLLAMA_BASE_URL}
-        currentModel={currentModel}
-        connectionStatus={connectionStatus}
-        agentData={agentData}
-      />
     </div>
   );
 };

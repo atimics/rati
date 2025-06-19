@@ -492,4 +492,53 @@ router.post('/api/reset', asyncHandler(async (req, res) => {
   });
 }));
 
+// Legacy deployment endpoints (consolidated from deployment.js)
+// Genesis deployment
+router.post('/genesis', async (req, res) => {
+  try {
+    console.log('Genesis deployment request:', req.body);
+    const result = await deployGenesis(req.body);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Genesis deployment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Genesis deployment failed',
+      details: error.message 
+    });
+  }
+});
+
+// Oracle deployment
+router.post('/oracle', async (req, res) => {
+  try {
+    console.log('Oracle deployment request:', req.body);
+    const result = await deployOracle(req.body);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Oracle deployment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Oracle deployment failed',
+      details: error.message 
+    });
+  }
+});
+
+// Agent deployment  
+router.post('/agent', async (req, res) => {
+  try {
+    console.log('Agent deployment request:', req.body);
+    const result = await deployDefaultAgent(req.body);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Agent deployment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Agent deployment failed',
+      details: error.message 
+    });
+  }
+});
+
 export default router;

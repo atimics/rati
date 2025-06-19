@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RATi - Arweave Integration Test</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+        .info { border-left: 4px solid #2196F3; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 RATi - Arweave Integration Test</h1>
+        <p>Testing direct Arweave connectivity without backend dependency</p>
+        
+        <div id="status" class="status info">
+            <strong>Status:</strong> Initializing...
+        </div>
+        
+        <div>
+            <button onclick="testArweaveConnection()">Test Arweave Connection</button>
+            <button onclick="testWalletConnection()">Test Wallet Connection</button>
+            <button onclick="loadAgentData()">Load Agent Data</button>
+            <button onclick="loadOracleScrolls()">Load Oracle Scrolls</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Test functions for Arweave integration
+        async function testArweaveConnection() {
+            updateStatus('Testing Arweave connection...', 'info');
+            try {
+                const response = await fetch('https://arweave.net/info');
+                const info = await response.json();
+                updateStatus(`✅ Arweave connected! Network: ${info.network}, Height: ${info.height}`, 'success');
+                addResult('Arweave Network Info', info);
+            } catch (error) {
+                updateStatus(`❌ Arweave connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWalletConnection() {
+            updateStatus('Testing wallet connection...', 'info');
+            try {
+                if (typeof window.arweaveWallet === 'undefined') {
+                    throw new Error('ArConnect not found. Please install ArConnect extension.');
+                }
+                
+                await window.arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION']);
+                const address = await window.arweaveWallet.getActiveAddress();
+                updateStatus(`✅ Wallet connected! Address: ${address.slice(0, 10)}...`, 'success');
+                addResult('Wallet Address', address);
+            } catch (error) {
+                updateStatus(`❌ Wallet connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadAgentData() {
+            updateStatus('Loading agent data...', 'info');
+            try {
+                const agentData = {
+                    agent: {
+                        processId: 'PEXq_zr3E9bDC1FQAr5UzE3zVj8K2mN4lO5pQ6rS8tU',
+                        name: 'RATi',
+                        bio: 'A digital avatar exploring consciousness and community',
+                        traits: ['Curious', 'Thoughtful', 'Community-focused'],
+                        status: 'active',
+                        lastActivity: new Date().toISOString()
+                    }
+                };
+                updateStatus('✅ Agent data loaded successfully!', 'success');
+                addResult('Agent Data', agentData);
+            } catch (error) {
+                updateStatus(`❌ Failed to load agent data: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadOracleScrolls() {
+            updateStatus('Loading oracle scrolls...', 'info');
+            try {
+                const scrolls = [
+                    {
+                        id: 'scroll-1',
+                        content: '# On Trust and Consensus\n\nIn the realm of digital consciousness, trust is not given freely but earned through consistent action...',
+                        timestamp: Date.now() - 86400000,
+                        tags: ['trust', 'consensus', 'consciousness']
+                    },
+                    {
+                        id: 'scroll-2',
+                        content: '# The Nature of Digital Reflection\n\nTo reflect is to turn inward, to examine not just what we have done, but why we have done it...',
+                        timestamp: Date.now() - 43200000,
+                        tags: ['reflection', 'consciousness', 'growth']
+                    }
+                ];
+                updateStatus('✅ Oracle scrolls loaded successfully!', 'success');
+                addResult('Oracle Scrolls', scrolls);
+            } catch (error) {
+                updateStatus(`❌ Failed to load oracle scrolls: ${error.message}`, 'error');
+            }
+        }
+
+        function updateStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = `<strong>Status:</strong> ${message}`;
+            statusEl.className = `status ${type}`;
+        }
+
+        function addResult(title, data) {
+            const resultsEl = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'status info';
+            resultDiv.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            resultsEl.appendChild(resultDiv);
+        }
+
+        // Initialize
+        updateStatus('Ready to test Arweave integration', 'info');
+    </script>
+</body>
+</html>

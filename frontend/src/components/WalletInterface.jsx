@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { connectWallet, getWalletBalance, waitForArConnect } from '../utils/arweave.js';
 import './WalletInterface.css';
 
-const WalletInterface = ({ onWalletConnect, onWalletDisconnect }) => {
-  const [wallet, setWallet] = useState(null);
+const WalletInterface = ({ onWalletConnect, onWalletDisconnect, wallet, arweaveService }) => {
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -13,8 +11,11 @@ const WalletInterface = ({ onWalletConnect, onWalletDisconnect }) => {
     // Check for ArConnect availability
     const checkArConnect = async () => {
       try {
-        await waitForArConnect(2000);
-        setArConnectAvailable(true);
+        if (typeof window.arweaveWallet !== 'undefined') {
+          setArConnectAvailable(true);
+        } else {
+          setArConnectAvailable(false);
+        }
       } catch {
         setArConnectAvailable(false);
       }
@@ -38,21 +39,26 @@ const WalletInterface = ({ onWalletConnect, onWalletDisconnect }) => {
         window.removeEventListener('walletSwitch', handleArConnectConnect);
       }
     };
-  }, [onWalletDisconnect]);
+  }, []);
 
   const handleConnect = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const walletConnection = await connectWallet();
+      const walletConnection = await arweaveService.connectWallet();
       
       if (walletConnection.connected) {
-        setWallet(walletConnection);
-        
-        // Get wallet balance
-        const walletBalance = await getWalletBalance(walletConnection.address);
-        setBalance(walletBalance);
+        // Get wallet balance safely
+        try {
+          const balanceResult = await arweaveService.arweave.wallets.getBalance(walletConnection.address);
+          const balanceAr = arweaveService.arweave.ar.winstonToAr(balanceResult);
+          const numericBalance = parseFloat(balanceAr) || 0;
+          setBalance({ ar: numericBalance });
+        } catch (balanceError) {
+          console.warn('Could not fetch balance:', balanceError);
+          setBalance({ ar: 0 });
+        }
 
         if (onWalletConnect) {
           onWalletConnect(walletConnection);
@@ -68,7 +74,6 @@ const WalletInterface = ({ onWalletConnect, onWalletDisconnect }) => {
   };
 
   const handleDisconnect = () => {
-    setWallet(null);
     setBalance(null);
     setError(null);
     if (onWalletDisconnect) onWalletDisconnect();
@@ -80,7 +85,9 @@ const WalletInterface = ({ onWalletConnect, onWalletDisconnect }) => {
   };
 
   const formatBalance = (ar) => {
-    return ar < 0.001 ? ar.toFixed(6) : ar.toFixed(3);
+    if (ar === null || ar === undefined || isNaN(ar)) return '0.000';
+    const numericBalance = parseFloat(ar);
+    return numericBalance < 0.001 ? numericBalance.toFixed(6) : numericBalance.toFixed(3);
   };
 
   const getErrorMessage = (error) => {

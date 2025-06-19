@@ -1,0 +1,190 @@
+/* Modern Wallet Interface Styles */
+
+.wallet-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wallet-icon {
+  font-size: 1.2rem;
+}
+
+.wallet-text {
+  font-weight: 500;
+  color: #666;
+}
+
+.wallet-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+}
+
+.wallet-address {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.85rem;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.wallet-balance {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Extension Needed State */
+.extension-needed {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+.install-arconnect {
+  background: #f39c12;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.install-arconnect:hover {
+  background: #e67e22;
+  transform: translateY(-1px);
+}
+
+/* Disconnected State */
+.disconnected {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.connect-wallet {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.connect-wallet:hover:not(:disabled) {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.connect-wallet:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Connected State */
+.connected {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+}
+
+.disconnect-wallet {
+  background: rgba(108, 117, 125, 0.1);
+  color: #6c757d;
+  border: 1px solid rgba(108, 117, 125, 0.2);
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.disconnect-wallet:hover {
+  background: rgba(108, 117, 125, 0.2);
+  color: #495057;
+}
+
+/* Error Message */
+.wallet-error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  max-width: 250px;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .wallet-status {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+  }
+  
+  .wallet-details {
+    display: none;
+  }
+  
+  .wallet-address {
+    font-size: 0.8rem;
+  }
+  
+  .connect-wallet,
+  .install-arconnect {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .wallet-info .wallet-text {
+    display: none;
+  }
+  
+  .wallet-error {
+    position: fixed;
+    top: auto;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
+}
