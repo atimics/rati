@@ -89,20 +89,24 @@ const SettingsInterface = () => {
     }
   };
 
-  const checkAIStatus = async () => {
+  const checkAIStatus = async (showToast = false) => {
     setIsCheckingAI(true);
     try {
       const status = await enhancedAIService.getInferenceEndpoint();
       setAiStatus(status);
       
-      if (status.available) {
-        toast.success(`AI Connected: ${status.model}`);
-      } else {
-        toast.error('AI not available. Please install and start Ollama.');
+      if (showToast) {
+        if (status.available) {
+          toast.success(`AI Connected: ${status.model}`);
+        } else {
+          toast.error('AI not available. Please install and start Ollama.');
+        }
       }
     } catch (error) {
       console.error('Failed to check AI status:', error);
-      toast.error('Failed to check AI status');
+      if (showToast) {
+        toast.error('Failed to check AI status');
+      }
     } finally {
       setIsCheckingAI(false);
     }
@@ -215,7 +219,7 @@ const SettingsInterface = () => {
             <div className="status-header">
               <h4>Inference Status</h4>
               <button 
-                onClick={checkAIStatus}
+                onClick={() => checkAIStatus(true)}
                 disabled={isCheckingAI}
                 className="refresh-btn"
               >

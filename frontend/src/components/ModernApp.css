@@ -12,7 +12,8 @@ body {
   width: 100% !important;
   height: 100vh !important;
   overflow-x: hidden !important;
-  overflow-y: hidden !important; /* Prevent body scroll */
+  /* Allow vertical scrolling on body if needed, but chat should handle its own scrolling */
+  overflow-y: hidden !important;
 }
 
 .modern-app {
@@ -171,6 +172,9 @@ body {
   flex-direction: column;
   overflow: hidden; /* Prevent content from overflowing */
   backdrop-filter: blur(10px);
+  min-height: 0; /* Ensure proper flex shrinking */
+  /* Ensure the tab content can take available space */
+  height: 100%;
 }
 
 /* Arweave + Wallet Status Integration */
@@ -467,6 +471,34 @@ body {
     max-height: 24px;
     overflow: hidden;
     flex-direction: row;
+  }
+}
+
+/* Additional Chrome fixes for proper height calculation */
+@supports (-webkit-appearance: none) {
+  .modern-app {
+    /* Ensure app takes full viewport height in Chrome */
+    min-height: 100vh;
+    max-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .modern-main {
+    /* Force Chrome to calculate proper available height */
+    height: 0;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  .tab-content {
+    /* Ensure tab content can scroll internally in Chrome */
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    -webkit-flex: 1;
+    flex: 1;
   }
 }
 

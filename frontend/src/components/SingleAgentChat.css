@@ -5,6 +5,8 @@
   display: flex;
   flex-direction: column;
   background: transparent;
+  min-height: 0; /* Critical for proper flex behavior */
+  overflow: hidden; /* Prevent overall container from scrolling */
 }
 
 .loading-state {
@@ -119,11 +121,19 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal overflow */
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: 0;
+  min-height: 0; /* Critical for flex child scrolling */
+  max-height: 100%; /* Ensure it doesn't exceed container */
+  /* Ensure proper scrolling behavior */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rati-purple) transparent;
+  /* Force hardware acceleration for smooth scrolling in Chrome */
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .welcome-message {
@@ -182,8 +192,9 @@
 .message {
   display: flex;
   flex-direction: column;
-  max-width: 75%;
+  max-width: 85%; /* Increase max width slightly */
   margin-bottom: 1rem;
+  flex-shrink: 0; /* Prevent messages from being compressed */
 }
 
 .message.user {
@@ -204,6 +215,9 @@
   line-height: 1.5;
   font-size: 1rem;
   word-wrap: break-word;
+  overflow-wrap: break-word; /* Ensure long words break properly */
+  hyphens: auto; /* Add hyphenation for better text wrapping */
+  max-width: 100%; /* Ensure content doesn't overflow */
 }
 
 .message.user .message-content {
@@ -318,6 +332,85 @@
   text-align: center;
 }
 
+/* Webkit Scrollbar Styling */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--rati-purple);
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--rati-purple-light);
+  opacity: 1;
+}
+
+/* Chrome-specific fixes for scrolling and layout */
+@supports (-webkit-appearance: none) {
+  .single-agent-chat {
+    /* Force proper height calculation in Chrome */
+    height: 100%;
+    min-height: 100%;
+    max-height: 100%;
+    contain: layout;
+  }
+  
+  .chat-messages {
+    /* Ensure scrolling works properly in Chrome */
+    -webkit-flex: 1;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+    /* Force Chrome to respect the flex container bounds */
+    height: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  .chat-header {
+    /* Prevent header from being flexible in Chrome */
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+  }
+  
+  .chat-input-area {
+    /* Prevent input area from being flexible in Chrome */
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+  }
+}
+
+/* Additional WebKit fixes for Safari and Chrome */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .single-agent-chat {
+    /* WebKit-specific height constraints */
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .chat-messages {
+    /* Force WebKit to handle scrolling properly */
+    -webkit-flex: 1 1 0%;
+    flex: 1 1 0%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .chat-header {
@@ -343,7 +436,7 @@
   }
   
   .chat-messages {
-    padding: 1rem;
+    padding: 1rem 0.75rem; /* Reduce side padding on mobile */
   }
   
   .welcome-content {
@@ -351,16 +444,16 @@
   }
   
   .message {
-    max-width: 85%;
+    max-width: 95%; /* Increase message width on small screens */
   }
   
   .message-content {
     padding: 0.875rem 1rem;
-    font-size: 0.95rem;
+    font-size: 0.95rem; /* Slightly smaller text on mobile */
   }
   
   .chat-input-area {
-    padding: 1rem;
+    padding: 1rem 0.75rem; /* Reduce side padding on mobile */
   }
   
   .input-group {

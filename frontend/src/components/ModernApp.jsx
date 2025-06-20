@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { useRatiStore } from '../store';
 import { useWallet } from '../contexts/WalletContext';
 import SingleAgentChat from './SingleAgentChat'; // Single agent chat interface
-import AgentJournalView from './AgentJournalView'; // Arweave memory view
+import AgentMemoryView from './AgentMemoryView'; // Modern memory view
 import SettingsInterface from './SettingsInterface'; // Settings interface
 import ErrorBoundary from './ErrorBoundary'; // Error boundary for crash protection
 import './ModernApp.css';
@@ -39,19 +39,6 @@ const ModernApp = () => {
       setActiveTab('chat');
     }
   }, [activeTab, setActiveTab]);
-
-  // Create default agent data for components that need it
-  const defaultAgentData = React.useMemo(() => ({
-    agent: {
-      processId: 'rati-default-agent-123',
-      name: 'RATi',
-      bio: 'A digital avatar exploring consciousness and community',
-      traits: ['Curious', 'Thoughtful', 'Community-focused'],
-      status: 'ready',
-      lastActivity: new Date().toISOString(),
-      mode: 'client-side'
-    }
-  }), []);
 
   return (
     <div className="modern-app">
@@ -149,7 +136,9 @@ const ModernApp = () => {
         
         {activeTab === 'memory' && (
           <div className="tab-content">
-            <AgentJournalView agentData={defaultAgentData} />
+            <ErrorBoundary>
+              <AgentMemoryView />
+            </ErrorBoundary>
           </div>
         )}
         
