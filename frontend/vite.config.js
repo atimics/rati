@@ -1,9 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      // Whether to polyfill `node:` protocol imports.
+      protocolImports: true,
+    })
+  ],
+  mode: 'development',
   base: './',
   build: {
     // Optimize for Arweave deployment
@@ -16,19 +24,14 @@ export default defineConfig({
     // Inline small assets
     assetsInlineLimit: 4096,
     // Generate source maps for debugging
-    sourcemap: false,
+    sourcemap: true,
     // Minimize output
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
+    minify: false,
   },
   define: {
     // Define global constants for Arweave deployment
-    __ARWEAVE_DEPLOYMENT__: 'true'
+    __ARWEAVE_DEPLOYMENT__: 'true',
+    global: 'globalThis',
   },
   // Ensure compatibility with older browsers
   target: 'es2015'

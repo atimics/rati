@@ -14,6 +14,8 @@ import healthRoutes from './routes/health.js';
 import arweaveRoutes from './routes/arweave.js';
 import deploymentRoutes from './routes/deployments.js';
 import agentRoutes from './routes/agent.js';
+import toolsRoutes from './routes/tools.js'; // New unified tools API
+import inferenceRoutes from './routes/inference.js'; // AI inference endpoint
 
 // Consolidated routes
 import journalRoutes from './routes/journal.js';
@@ -113,6 +115,8 @@ app.use('/', agentRoutes);
 app.use('/', journalRoutes);
 app.use('/', oracleRoutes);
 app.use('/', agentProcessorRoutes);
+app.use('/', toolsRoutes); // New unified tools API
+app.use('/api/inference', inferenceRoutes); // AI inference endpoint
 
 // Metrics
 import { register, collectHttpMetrics } from './metrics.js';

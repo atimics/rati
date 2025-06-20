@@ -1,17 +1,38 @@
-/* Modern App Styles */
+/* Modern App Styles - RATi Theme */
+/* Note: CSS variables are defined in /src/styles/theme.css */
+
+/* Override default body centering for modern app */
+body {
+  display: block !important;
+  place-items: unset !important;
+  background: var(--rati-bg-primary) !important;
+  color: var(--rati-text-primary) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100vh !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important; /* Prevent body scroll */
+}
 
 .modern-app {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, var(--rati-bg-primary) 0%, var(--rati-bg-secondary) 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header */
 .modern-header {
-  background: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background: var(--rati-surface);
+  border-bottom: 1px solid var(--rati-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   padding: 1rem 0;
-  margin-bottom: 2rem;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  position: relative;
 }
 
 .header-content {
@@ -22,21 +43,59 @@
   justify-content: space-between;
   padding: 0 2rem;
   gap: 2rem;
+  min-height: 60px;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+
+.logo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
 }
 
 .logo-section h1 {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--rati-purple), var(--rati-purple-light));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: var(--rati-purple); /* Fallback for browsers that don't support background-clip */
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.2;
+}
+
+.rati-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: var(--rati-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rati-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rati-logo:hover {
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 4px 15px rgba(107, 70, 193, 0.4);
 }
 
 .tagline {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--rati-text-secondary);
   margin: 0.25rem 0 0 0;
 }
 
@@ -44,9 +103,12 @@
 .modern-nav {
   display: flex;
   gap: 0.5rem;
-  background: #f8f9fa;
+  background: var(--rati-bg-secondary);
   padding: 0.5rem;
   border-radius: 50px;
+  border: 1px solid var(--rati-border);
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .nav-button {
@@ -57,33 +119,237 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #666;
+  color: var(--rati-text-secondary);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .nav-button:hover {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(107, 70, 193, 0.2);
+  color: var(--rati-purple-light);
+  transform: translateY(-1px);
 }
 
 .nav-button.active {
-  background: #667eea;
-  color: white;
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+  background: var(--rati-purple);
+  color: var(--rati-text-primary);
+  box-shadow: 0 4px 15px rgba(107, 70, 193, 0.4);
+  transform: translateY(-1px);
+}
+
+.nav-button.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--rati-purple-light), var(--rati-purple));
+  z-index: -1;
 }
 
 /* Main Content */
 .modern-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow flex child to shrink */
 }
 
 .tab-content {
-  background: white;
+  background: var(--rati-surface);
+  border: 1px solid var(--rati-border);
   border-radius: 1rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  min-height: 60vh;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent content from overflowing */
+  backdrop-filter: blur(10px);
+}
+
+/* Arweave + Wallet Status Integration */
+.arweave-wallet-status {
+  position: relative;
+  margin-left: 1rem;
+  flex-shrink: 0;
+}
+
+.status-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  background: transparent;
+  color: inherit;
+  white-space: nowrap;
+  box-sizing: border-box;
+  min-width: fit-content;
+}
+
+.status-button.install-extension {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--rati-warning);
+  color: var(--rati-warning);
+}
+
+.status-button.install-extension:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: var(--rati-warning);
+  transform: translateY(-1px);
+}
+
+.status-button.wallet-connect {
+  background: rgba(107, 70, 193, 0.1);
+  border-color: var(--rati-purple);
+  color: var(--rati-purple-light);
+}
+
+.status-button.wallet-connect:hover:not(:disabled) {
+  background: rgba(107, 70, 193, 0.2);
+  border-color: var(--rati-purple-light);
+  transform: translateY(-1px);
+}
+
+.status-button.wallet-connect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status-button.wallet-connected {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--rati-success);
+  color: var(--rati-success);
+  cursor: default;
+  padding: 0.5rem 0.75rem;
+  height: 40px;
+  max-height: 40px;
+  align-items: center;
+  max-width: 140px;
   overflow: hidden;
+}
+
+.wallet-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  min-height: 0;
+  line-height: 1;
+  overflow: hidden;
+  width: 100%;
+}
+
+.wallet-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wallet-address {
+  font-size: 0.65rem;
+  color: var(--rati-text-muted);
+  font-family: 'Monaco', 'Menlo', monospace;
+  line-height: 1;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60px;
+  flex-shrink: 1;
+}
+
+.disconnect-btn {
+  background: none;
+  border: none;
+  color: var(--rati-error);
+  cursor: pointer;
+  padding: 0.125rem;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  margin-left: 0.25rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.disconnect-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: scale(1.1);
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator.connected {
+  background: var(--rati-success);
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.disconnected {
+  background: var(--rati-text-muted);
+}
+
+.status-indicator.warning {
+  font-size: 1rem;
+  width: auto;
+  height: auto;
+}
+
+.wallet-error-tooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--rati-bg-secondary);
+  border: 1px solid var(--rati-error);
+  border-radius: 6px;
+  color: var(--rati-error);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.wallet-error-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  right: 1rem;
+  border: 4px solid transparent;
+  border-bottom-color: var(--rati-error);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Responsive Design */
@@ -92,21 +358,35 @@
     flex-direction: column;
     gap: 1rem;
     padding: 0 1rem;
+    align-items: stretch;
+  }
+  
+  .logo-section {
+    align-items: center;
+    text-align: center;
   }
   
   .modern-nav {
     order: -1;
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
   }
   
   .nav-button {
     flex: 1;
     text-align: center;
+    min-width: 120px;
+  }
+  
+  .arweave-wallet-status {
+    order: 1;
+    margin: 0.5rem 0 0 0;
+    align-self: center;
   }
   
   .modern-main {
-    padding: 0 1rem;
+    padding: 1rem;
   }
 }
 
@@ -118,5 +398,88 @@
   .nav-button {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
+    min-width: 100px;
+  }
+  
+  .status-button {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  
+  .modern-main {
+    padding: 0.5rem;
+  }
+  
+  .header-content {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Chrome-specific fixes */
+@supports (-webkit-appearance: none) {
+  .logo-section h1 {
+    /* Force hardware acceleration for better text rendering in Chrome */
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  .modern-nav {
+    /* Fix Chrome flexbox rendering issues */
+    min-width: 0;
+  }
+  
+  .nav-button {
+    /* Improve button rendering in Chrome */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  .header-content {
+    /* Ensure proper flexbox behavior in Chrome */
+    width: 100%;
+  }
+  
+  .status-button.wallet-connected {
+    /* Fix wallet status height in Chrome */
+    align-items: center;
+    min-height: 40px;
+    max-height: 40px;
+    max-width: 140px;
+  }
+  
+  .wallet-info {
+    /* Ensure wallet info doesn't expand vertically in Chrome */
+    height: auto;
+    max-height: 24px;
+    overflow: hidden;
+    flex-direction: row;
+  }
+}
+
+/* WebKit-specific fixes for Safari and Chrome */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .status-button {
+    /* Fix text alignment issues in WebKit browsers */
+    display: -webkit-flex;
+    display: flex;
+    -webkit-align-items: center;
+    align-items: center;
+  }
+  
+  .status-button.wallet-connected {
+    /* Constrain height in WebKit browsers */
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    height: 40px;
+    max-width: 140px;
+  }
+  
+  .wallet-info {
+    /* Prevent vertical expansion in WebKit */
+    -webkit-flex-shrink: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    -webkit-flex-direction: row;
+    flex-direction: row;
   }
 }

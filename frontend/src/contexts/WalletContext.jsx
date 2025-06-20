@@ -1,7 +1,7 @@
-import { createContext, useContext } from 'react';
+import React, { createContext, useContext } from 'react';
 
 /**
- * Wallet Context for RATi application
+ * Wallet Context for providing wallet state across the app
  */
 export const WalletContext = createContext(null);
 

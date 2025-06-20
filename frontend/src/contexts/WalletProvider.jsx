@@ -28,31 +28,8 @@ export const WalletProvider = ({ children }) => {
     return typeof window !== 'undefined' && window.arweaveWallet;
   }, []);
 
-  // Initialize wallet state on mount
-  useEffect(() => {
-    const initializeWallet = async () => {
-      if (!checkArConnectAvailability()) {
-        setStatus(WALLET_STATUS.EXTENSION_MISSING);
-        return;
-      }
-
-      // Check if already connected
-      try {
-        const address = await window.arweaveWallet.getActiveAddress();
-        if (address) {
-          await handleWalletConnection(address);
-        }
-      } catch {
-        // Not connected, that's fine
-        setStatus(WALLET_STATUS.DISCONNECTED);
-      }
-    };
-
-    initializeWallet();
-  }, [checkArConnectAvailability]);
-
   // Handle successful wallet connection
-  const handleWalletConnection = async (address) => {
+  const handleWalletConnection = useCallback(async (address) => {
     try {
       const publicKey = await window.arweaveWallet.getActivePublicKey();
       
@@ -83,13 +60,39 @@ export const WalletProvider = ({ children }) => {
       setStatus(WALLET_STATUS.CONNECTED);
       setError(null);
       
-      toast.success('Wallet connected successfully!');
+      // Only show toast if this is a new connection (not initial load)
+      if (status === WALLET_STATUS.CONNECTING) {
+        toast.success('Wallet connected successfully!');
+      }
     } catch (err) {
       console.error('Error handling wallet connection:', err);
       setError(err.message);
       setStatus(WALLET_STATUS.ERROR);
     }
-  };
+  }, [status]);
+
+  // Initialize wallet state on mount
+  useEffect(() => {
+    const initializeWallet = async () => {
+      if (!checkArConnectAvailability()) {
+        setStatus(WALLET_STATUS.EXTENSION_MISSING);
+        return;
+      }
+
+      // Check if already connected
+      try {
+        const address = await window.arweaveWallet.getActiveAddress();
+        if (address) {
+          await handleWalletConnection(address);
+        }
+      } catch {
+        // Not connected, that's fine
+        setStatus(WALLET_STATUS.DISCONNECTED);
+      }
+    };
+
+    initializeWallet();
+  }, [checkArConnectAvailability, handleWalletConnection]);
 
   // Connect wallet function
   const connect = async () => {

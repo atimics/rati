@@ -50,6 +50,7 @@ services:
 
   # Deployment Management Service
   deployment-service:
+    platform: linux/amd64
     build:
       context: ./deployment-service
       dockerfile: Dockerfile
@@ -77,6 +78,7 @@ services:
 
   # Frontend React App
   frontend:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
@@ -117,6 +119,7 @@ services:
 
   # AI Agent - Digital Avatar Participant
   ai-agent:
+    platform: linux/amd64
     build:
       context: ./agent
       dockerfile: Dockerfile
@@ -157,6 +160,7 @@ services:
 
   # CLI Service for running deployment commands inside the Docker network
   rati-cli:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile.cli

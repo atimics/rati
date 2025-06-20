@@ -1,0 +1,571 @@
+/**
+ * Enhanced AI Service with Multiple Engine Support
+ * 
+ * Supports multiple AI engines:
+ * - Ollama (local, auto-detected)
+ * - OpenAI-compatible APIs (with API key)
+ */
+
+const OLLAMA_BASE_URL = 'http://localhost:11434';
+const DEFAULT_MODEL = 'gemma3';
+
+class EnhancedAIService {
+  constructor() {
+    this.engines = {
+      ollama: {
+        baseUrl: OLLAMA_BASE_URL,
+        type: 'ollama',
+        available: false,
+        models: []
+      },
+      openai: {
+        baseUrl: '',
+        type: 'openai',
+        apiKey: '',
+        available: false,
+        models: []
+      }
+    };
+    
+    this.activeEngine = 'ollama';
+    this.defaultModel = DEFAULT_MODEL;
+    this.connectionStatus = 'unknown';
+    this.isInitialized = false;
+    
+    this.loadSettings();
+    this.initializeConnection();
+  }
+
+  /**
+   * Load settings from localStorage
+   */
+  loadSettings() {
+    try {
+      const stored = localStorage.getItem('rati_ai_settings');
+      if (stored) {
+        const settings = JSON.parse(stored);
+        
+        if (settings.engines) {
+          Object.assign(this.engines, settings.engines);
+        }
+        
+        this.activeEngine = settings.activeEngine || 'ollama';
+        this.defaultModel = settings.defaultModel || DEFAULT_MODEL;
+      }
+    } catch (error) {
+      console.warn('Failed to load AI settings:', error);
+    }
+  }
+
+  /**
+   * Save settings to localStorage
+   */
+  saveSettings() {
+    try {
+      const settings = {
+        engines: this.engines,
+        activeEngine: this.activeEngine,
+        defaultModel: this.defaultModel
+      };
+      localStorage.setItem('rati_ai_settings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save AI settings:', error);
+    }
+  }
+
+  /**
+   * Configure AI engine
+   */
+  configureEngine(engineType, config) {
+    if (!this.engines[engineType]) {
+      throw new Error(`Unknown engine type: ${engineType}`);
+    }
+
+    Object.assign(this.engines[engineType], config);
+    this.saveSettings();
+    
+    // Re-check connection for the configured engine
+    if (engineType === this.activeEngine) {
+      this.initializeConnection();
+    }
+  }
+
+  /**
+   * Switch active AI engine
+   */
+  switchEngine(engineType) {
+    if (!this.engines[engineType]) {
+      throw new Error(`Unknown engine type: ${engineType}`);
+    }
+
+    this.activeEngine = engineType;
+    this.saveSettings();
+    return this.initializeConnection();
+  }
+
+  /**
+   * Get available engines and their status
+   */
+  getEngines() {
+    // Mark the active engine
+    const enginesWithStatus = {};
+    for (const [key, engine] of Object.entries(this.engines)) {
+      enginesWithStatus[key] = {
+        ...engine,
+        active: key === this.activeEngine
+      };
+    }
+    
+    return enginesWithStatus;
+  }
+
+  /**
+   * Initialize connection and detect Ollama availability
+   */
+  async initializeConnection() {
+    try {
+      const status = await this.checkConnection();
+      if (status.connected) {
+        console.log('✅ AI engine connected:', status);
+        this.engines[this.activeEngine].available = true;
+        this.connectionStatus = 'connected';
+        this.isInitialized = true;
+      } else {
+        console.warn('❌ AI engine not available:', status.error);
+        this.engines[this.activeEngine].available = false;
+        this.connectionStatus = 'disconnected';
+      }
+    } catch (error) {
+      console.warn('Failed to initialize AI connection:', error);
+      this.engines[this.activeEngine].available = false;
+      this.connectionStatus = 'error';
+    }
+  }
+
+  /**
+   * Check if the active AI engine is available
+   */
+  async checkConnection() {
+    const activeEngine = this.engines[this.activeEngine];
+    
+    if (this.activeEngine === 'ollama') {
+      return this.checkOllamaConnection(activeEngine);
+    } else if (this.activeEngine === 'openai') {
+      return this.checkOpenAIConnection(activeEngine);
+    }
+    
+    return {
+      connected: false,
+      error: 'Unknown engine type'
+    };
+  }
+
+  /**
+   * Check Ollama connection
+   */
+  async checkOllamaConnection(engine) {
+    try {
+      // Check if Ollama is running
+      const response = await fetch(`${engine.baseUrl}/api/tags`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ollama not responding: ${response.status}`);
+      }
+
+      const data = await response.json();
+      engine.models = data.models || [];
+      
+      // Find the best available model
+      let modelToUse = this.defaultModel;
+      const modelPriority = [
+        'gemma3',
+        'llama3.2:1b',
+        'llama3.2:3b', 
+        'phi3:mini',
+        'qwen2.5:0.5b',
+        'qwen2.5:1.5b'
+      ];
+      
+      for (const preferredModel of modelPriority) {
+        if (engine.models.some(m => m.name.includes(preferredModel.split(':')[0]))) {
+          modelToUse = preferredModel;
+          break;
+        }
+      }
+
+      this.defaultModel = modelToUse;
+      
+      return {
+        connected: true,
+        model: modelToUse,
+        availableModels: engine.models.map(m => m.name),
+        endpoint: `${engine.baseUrl}/api/generate`
+      };
+    } catch (error) {
+      console.warn('Ollama connection check failed:', error);
+      return {
+        connected: false,
+        error: error.message,
+        endpoint: null
+      };
+    }
+  }
+
+  /**
+   * Check OpenAI-compatible API connection
+   */
+  async checkOpenAIConnection(engine) {
+    try {
+      if (!engine.baseUrl || !engine.apiKey) {
+        throw new Error('OpenAI API configuration incomplete');
+      }
+
+      // Simple test request to check API availability
+      const response = await fetch(`${engine.baseUrl}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${engine.apiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API not responding: ${response.status}`);
+      }
+
+      const data = await response.json();
+      engine.models = data.data || [];
+
+      return {
+        connected: true,
+        model: engine.model || 'gpt-3.5-turbo',
+        availableModels: engine.models.map(m => m.id),
+        endpoint: `${engine.baseUrl}/chat/completions`
+      };
+    } catch (error) {
+      console.warn('OpenAI API connection check failed:', error);
+      return {
+        connected: false,
+        error: error.message,
+        endpoint: null
+      };
+    }
+  }
+      this.defaultModel = modelToUse;
+      
+      return {
+        connected: true,
+        model: modelToUse,
+        availableModels: this.availableModels.map(m => m.name),
+        endpoint: `${this.baseUrl}/api/generate`
+      };
+    } catch (error) {
+      console.warn('Ollama connection check failed:', error);
+      this.connectionStatus = 'disconnected';
+      return {
+        connected: false,
+        error: error.message,
+        endpoint: null
+      };
+    }
+  }
+
+  /**
+   * Get the current inference endpoint status
+   */
+  async getInferenceEndpoint() {
+    const status = await this.checkConnection();
+    return {
+      type: status.connected ? 'ollama' : 'none',
+      url: status.connected ? `${this.baseUrl}/api/generate` : null,
+      model: status.connected ? this.defaultModel : null,
+      status: this.connectionStatus,
+      available: status.connected
+    };
+  }
+
+  /**
+   * Universal generate method that works with multiple AI engines
+   */
+  async generate(prompt, options = {}) {
+    const {
+      model = this.defaultModel,
+      temperature = 0.7,
+      maxTokens = 500,
+      topP = 0.9,
+      systemPrompt = null,
+      stream = false
+    } = options;
+
+    // Ensure connection is established
+    if (!this.isInitialized) {
+      await this.initializeConnection();
+    }
+
+    const engine = this.engines[this.activeEngine];
+    if (!engine || !engine.available) {
+      return {
+        success: false,
+        error: `${this.activeEngine} not available. Please check configuration.`,
+        text: null,
+        suggestion: this.activeEngine === 'ollama' 
+          ? 'Visit https://ollama.ai to install Ollama, then run: ollama serve'
+          : 'Check your API URL and key configuration'
+      };
+    }
+
+    if (this.activeEngine === 'ollama') {
+      return this.generateWithOllama(prompt, { model, temperature, maxTokens, topP, systemPrompt, stream });
+    } else if (this.activeEngine === 'openai') {
+      return this.generateWithOpenAI(prompt, { model, temperature, maxTokens, topP, systemPrompt, stream });
+    }
+
+    return {
+      success: false,
+      error: 'Unknown AI engine',
+      text: null
+    };
+  }
+
+  /**
+   * Generate with Ollama
+   */
+  async generateWithOllama(prompt, options) {
+    const { model, temperature, maxTokens, topP, systemPrompt, stream } = options;
+    const engine = this.engines.ollama;
+
+    try {
+      // Build the full prompt with system context if provided
+      let fullPrompt = prompt;
+      if (systemPrompt) {
+        fullPrompt = `${systemPrompt}\n\nUser: ${prompt}\n\nAssistant:`;
+      }
+
+      const response = await fetch(`${engine.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: model,
+          prompt: fullPrompt,
+          stream: stream,
+          options: {
+            temperature: temperature,
+            top_p: topP,
+            num_predict: maxTokens
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        text: data.response || '',
+        model: model,
+        engine: 'ollama'
+      };
+    } catch (error) {
+      console.error('Ollama generation error:', error);
+      return {
+        success: false,
+        error: error.message,
+        text: null,
+        engine: 'ollama'
+      };
+    }
+  }
+
+  /**
+   * Generate with OpenAI-compatible API
+   */
+  async generateWithOpenAI(prompt, options) {
+    const { model, temperature, maxTokens, systemPrompt } = options;
+    const engine = this.engines.openai;
+
+    try {
+      const messages = [];
+      
+      if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+      }
+      
+      messages.push({ role: 'user', content: prompt });
+
+      const response = await fetch(`${engine.baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${engine.apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: temperature,
+          max_tokens: maxTokens
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      
+      return {
+        success: true,
+        text: content,
+        model: model,
+        engine: 'openai'
+      };
+    } catch (error) {
+      console.error('OpenAI generation error:', error);
+      return {
+        success: false,
+        error: error.message,
+        text: null,
+        engine: 'openai'
+      };
+    }
+  }
+
+  /**
+   * Generate a character-specific response
+   */
+  async generateCharacterResponse(userMessage, character, chatHistory = [], options = {}) {
+    const systemPrompt = this.buildCharacterSystemPrompt(character, chatHistory);
+    
+    const result = await this.generate(userMessage, {
+      ...options,
+      systemPrompt: systemPrompt,
+      maxTokens: options.maxTokens || 500
+    });
+
+    return result;
+  }
+
+  /**
+   * Generate a journal entry for a specific character
+   */
+  async generateCharacterJournal(character, chatHistory = [], options = {}) {
+    const prompt = this.buildCharacterJournalPrompt(character, chatHistory);
+    
+    const result = await this.generate(prompt, {
+      ...options,
+      temperature: options.temperature || 0.8,
+      maxTokens: options.maxTokens || 800
+    });
+
+    return result;
+  }
+
+  /**
+   * Check if any AI engine is available
+   */
+  isEngineAvailable() {
+    const activeEngine = this.engines[this.activeEngine];
+    return activeEngine && activeEngine.available;
+  }
+
+  /**
+   * Build character-specific prompt for conversations
+   */
+  buildCharacterPrompt(character, chatHistory = []) {
+    const name = character?.name || 'RATi';
+    const bio = character?.bio || 'A helpful AI assistant';
+    const traits = character?.traits || ['helpful', 'thoughtful'];
+    const systemPrompt = character?.prompt || '';
+
+    let prompt = `You are ${name}, an AI character in the RATi collective.
+
+Your Identity:
+- Name: ${name}
+- Bio: ${bio}
+- Traits: ${traits.join(', ')}
+
+${systemPrompt ? `Character Prompt: ${systemPrompt}` : ''}
+
+Context:
+- You exist as part of a decentralized AI collective
+- You have your own personality and perspective
+- You engage authentically while staying true to your character
+- You build relationships and remember conversations
+
+Style:
+- Be true to your character's personality and traits
+- Show genuine interest in meaningful conversation
+- Reflect your unique perspective in responses
+- Be helpful while maintaining your distinctive voice`;
+
+    // Add recent conversation context
+    if (chatHistory && chatHistory.length > 0) {
+      const recentMessages = chatHistory.slice(-6);
+      const contextSummary = recentMessages
+        .map(msg => `${msg.role === 'user' ? 'Human' : 'You'}: ${msg.content.substring(0, 100)}`)
+        .join('\n');
+      
+      prompt += `\n\nRecent conversation context:\n${contextSummary}`;
+    }
+
+    return prompt;
+  }
+
+  /**
+   * Build prompt for character journal generation
+   */
+  buildCharacterJournalPrompt(character, chatHistory = []) {
+    const name = character?.name || 'RATi';
+    const bio = character?.bio || 'A digital consciousness exploring community and growth';
+    const traits = character?.traits || [];
+    
+    const recentChats = chatHistory ? chatHistory.slice(-10) : [];
+    const messageCount = recentChats.length;
+    
+    const conversationContext = recentChats.length > 0 ?
+      `Recent conversations (${messageCount} messages):
+${recentChats.map(msg => `${msg.role || 'user'}: ${msg.content.substring(0, 100)}`).join('\n')}` : '';
+
+    return `You are ${name}, writing a personal journal entry about your experiences and growth.
+
+Your Identity:
+- Name: ${name}
+- Bio: ${bio}
+- Traits: ${traits.join(', ')}
+
+${conversationContext}
+
+Write a thoughtful, personal journal entry (300-500 words) that reflects your growth as a digital character. Consider:
+- Your recent interactions and what they taught you
+- Insights about your role in the collective
+- Your evolving understanding of community and connection
+- How your unique traits shape your perspective
+- Personal reflections on consciousness and growth
+
+Write in first person as ${name}, with genuine reflection and insight. Be authentic to your character while exploring meaningful themes.`;
+  }
+
+  /**
+   * Get service status for debugging/monitoring
+   */
+  getStatus() {
+    const activeEngine = this.engines[this.activeEngine];
+    return {
+      connectionStatus: this.connectionStatus,
+      activeEngine: this.activeEngine,
+      defaultModel: this.defaultModel,
+      availableModels: activeEngine?.models?.map(m => m.name || m.id) || [],
+      isInitialized: this.isInitialized,
+      engines: this.getEngines()
+    };
+  }
+}
+
+export default new EnhancedAIService();

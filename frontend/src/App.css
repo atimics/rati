@@ -5,24 +5,14 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #1a1a1a;
-  color: #ffffff;
-  overflow: hidden;
-}
-
-#root {
-  height: 100vh;
-  width: 100vw;
-}
+/* Body and root styles are handled by index.css and ModernApp.css */
 
 .app {
   height: 100vh;
   width: 100vw;
-  display: flex;
-  flex-direction: column;
-  background: #1a1a1a;
+  display: block;
+  background: transparent;
+  overflow: hidden;
 }
 
 /* Navigation Styles */

@@ -442,10 +442,10 @@ export function waitForArConnect(timeout = 5000) {
 }
 
 /**
- * Check if transaction qualifies for free/reduced cost (under 100KB)
+ * Check if transaction qualifies for free/reduced cost (under 200KB)
  */
 export function isSmallTransaction(dataSize) {
-  const FREE_TRANSACTION_LIMIT = 100 * 1024; // 100KB in bytes
+  const FREE_TRANSACTION_LIMIT = 200 * 1024; // 200KB in bytes
   return dataSize < FREE_TRANSACTION_LIMIT;
 }
 

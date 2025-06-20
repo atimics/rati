@@ -30,7 +30,7 @@ class AIService {
       
       // Find the best available model
       let modelToUse = this.defaultModel;
-      const modelPriority = ['gemma3', 'gemma2:2b', 'llama3.2', 'phi3'];
+      const modelPriority = ['gemma3', 'gemma3', 'llama3.2', 'phi3'];
       
       for (const preferredModel of modelPriority) {
         if (availableModels.some(m => m.name.includes(preferredModel))) {
@@ -123,7 +123,7 @@ class AIService {
    * @param {Object} options - Generation options
    */
   async generateChatResponse(userMessage, chatHistory = [], agentData = null, options = {}) {
-    const systemPrompt = this.buildChatSystemPrompt(agentData, chatHistory);
+    const systemPrompt = agentData?.toolPrompt || this.buildChatSystemPrompt(agentData, chatHistory);
     
     const result = await this.generate(userMessage, {
       ...options,

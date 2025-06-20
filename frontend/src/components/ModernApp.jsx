@@ -1,10 +1,9 @@
-import React from 'react';
-import { useWallet } from '../hooks/useWallet';
-import { useUIStore } from '../store';
-import ModernWalletInterface from './ModernWalletInterface';
-import JournalInterface from './JournalInterface'; // Keep existing for now
-import ChatInterface from './ChatInterface'; // Keep existing for now
-import AgentJournalView from './AgentJournalView'; // New read-only journal view
+import React, { useCallback } from 'react';
+import { useRatiStore } from '../store';
+import { useWallet } from '../contexts/WalletContext';
+import SimplifiedCharacterInterface from './SimplifiedCharacterInterface'; // Simplified local chat
+import AgentJournalView from './AgentJournalView'; // Arweave memory view
+import SettingsInterface from './SettingsInterface'; // Settings interface
 import './ModernApp.css';
 
 /**
@@ -15,18 +14,33 @@ import './ModernApp.css';
  */
 
 const ModernApp = () => {
-  const { isConnected } = useWallet();
-  const { activeTab, setActiveTab } = useUIStore();
+  const activeTab = useRatiStore((state) => state.activeTab);
+  const _setActiveTab = useRatiStore((state) => state.setActiveTab);
+  const {
+    isConnected,
+    isConnecting,
+    needsExtension,
+    error,
+    connect,
+    disconnect,
+    getFormattedAddress,
+    getFormattedBalance
+  } = useWallet();
+
+  // Stabilize the setActiveTab function from the store
+  const setActiveTab = useCallback((tab) => {
+    _setActiveTab(tab);
+  }, [_setActiveTab]);
   
-  // Ensure we don't show the deploy tab if it was previously selected
+  // Ensure we start with a sensible default tab
   React.useEffect(() => {
-    if (activeTab === 'deploy') {
+    if (!['chat', 'memory', 'settings'].includes(activeTab)) {
       setActiveTab('chat');
     }
   }, [activeTab, setActiveTab]);
 
   // Create default agent data for components that need it
-  const defaultAgentData = {
+  const defaultAgentData = React.useMemo(() => ({
     agent: {
       processId: 'rati-default-agent-123',
       name: 'RATi',
@@ -36,14 +50,19 @@ const ModernApp = () => {
       lastActivity: new Date().toISOString(),
       mode: 'client-side'
     }
-  };
+  }), []);
 
   return (
     <div className="modern-app">
       <header className="modern-header">
         <div className="header-content">
           <div className="logo-section">
-            <h1>🤖 RATi</h1>
+            <h1>
+              <div className="rati-logo">
+                <img src="/rati-logo-dark.png" alt="RATi Logo" />
+              </div>
+              RATi
+            </h1>
             <p className="tagline">Chat with your Digital Avatar</p>
           </div>
           
@@ -52,47 +71,88 @@ const ModernApp = () => {
               className={`nav-button ${activeTab === 'chat' ? 'active' : ''}`}
               onClick={() => setActiveTab('chat')}
             >
-              💬 Chat
+              💬 Local Chat
             </button>
             <button 
-              className={`nav-button ${activeTab === 'journal' ? 'active' : ''}`}
-              onClick={() => setActiveTab('journal')}
+              className={`nav-button ${activeTab === 'memory' ? 'active' : ''}`}
+              onClick={() => setActiveTab('memory')}
             >
-              📖 Agent Journal
+              🧠 Arweave Memory
             </button>
             <button 
-              className={`nav-button ${activeTab === 'tools' ? 'active' : ''}`}
-              onClick={() => setActiveTab('tools')}
+              className={`nav-button ${activeTab === 'settings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('settings')}
             >
-              🛠️ Tools
+              ⚙️ Settings
             </button>
+            
+            <div className="arweave-wallet-status">
+              {needsExtension ? (
+                <a 
+                  href="https://www.arconnect.io/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="status-button install-extension"
+                  title="Install ArConnect to connect your wallet"
+                >
+                  <span className="status-indicator warning">⚠️</span>
+                  <span className="status-text">Install ArConnect</span>
+                </a>
+              ) : !isConnected ? (
+                <button 
+                  className="status-button wallet-connect"
+                  onClick={connect}
+                  disabled={isConnecting}
+                  title="Connect your Arweave wallet"
+                >
+                  <span className="status-indicator disconnected">●</span>
+                  <span className="status-text">
+                    {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                  </span>
+                </button>
+              ) : (
+                <div className="status-button wallet-connected" title={`Connected: ${getFormattedAddress()}\nBalance: ${getFormattedBalance()} AR`}>
+                  <span className="status-indicator connected">●</span>
+                  <div className="wallet-info">
+                    <span className="status-text">Arweave</span>
+                    <span className="wallet-address">{getFormattedAddress()}</span>
+                  </div>
+                  <button 
+                    className="disconnect-btn"
+                    onClick={disconnect}
+                    title="Disconnect wallet"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              {error && (
+                <div className="wallet-error-tooltip">
+                  {error}
+                </div>
+              )}
+            </div>
           </nav>
           
-          <ModernWalletInterface />
         </div>
       </header>
       
       <main className="modern-main">
         {activeTab === 'chat' && (
           <div className="tab-content">
-            <ChatInterface agentData={defaultAgentData} />
+            <SimplifiedCharacterInterface />
           </div>
         )}
         
-        {activeTab === 'journal' && (
+        {activeTab === 'memory' && (
           <div className="tab-content">
             <AgentJournalView agentData={defaultAgentData} />
           </div>
         )}
         
-        {activeTab === 'tools' && (
+        {activeTab === 'settings' && (
           <div className="tab-content">
-            <JournalInterface 
-              agentData={defaultAgentData}
-              isVisible={true}
-              arweaveService={null} // Will be replaced by SDK
-              wallet={isConnected ? {} : null} // Simplified for compatibility
-            />
+            <SettingsInterface />
           </div>
         )}
       </main>
