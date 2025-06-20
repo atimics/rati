@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react';
 import { useRatiStore } from '../store';
 import { useWallet } from '../contexts/WalletContext';
-import SimplifiedCharacterInterface from './SimplifiedCharacterInterface'; // Simplified local chat
+import SingleAgentChat from './SingleAgentChat'; // Single agent chat interface
 import AgentJournalView from './AgentJournalView'; // Arweave memory view
 import SettingsInterface from './SettingsInterface'; // Settings interface
+import ErrorBoundary from './ErrorBoundary'; // Error boundary for crash protection
 import './ModernApp.css';
 
 /**
@@ -71,13 +72,13 @@ const ModernApp = () => {
               className={`nav-button ${activeTab === 'chat' ? 'active' : ''}`}
               onClick={() => setActiveTab('chat')}
             >
-              💬 Local Chat
+              💬 Chat
             </button>
             <button 
               className={`nav-button ${activeTab === 'memory' ? 'active' : ''}`}
               onClick={() => setActiveTab('memory')}
             >
-              🧠 Arweave Memory
+              🧠 Memory
             </button>
             <button 
               className={`nav-button ${activeTab === 'settings' ? 'active' : ''}`}
@@ -112,7 +113,7 @@ const ModernApp = () => {
                 </button>
               ) : (
                 <div className="status-button wallet-connected" title={`Connected: ${getFormattedAddress()}\nBalance: ${getFormattedBalance()} AR`}>
-                  <span className="status-indicator connected">●</span>
+                  <span className="status-indicator connected"></span>
                   <div className="wallet-info">
                     <span className="status-text">Arweave</span>
                     <span className="wallet-address">{getFormattedAddress()}</span>
@@ -140,7 +141,9 @@ const ModernApp = () => {
       <main className="modern-main">
         {activeTab === 'chat' && (
           <div className="tab-content">
-            <SimplifiedCharacterInterface />
+            <ErrorBoundary>
+              <SingleAgentChat />
+            </ErrorBoundary>
           </div>
         )}
         

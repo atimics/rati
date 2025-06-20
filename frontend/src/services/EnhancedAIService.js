@@ -697,8 +697,6 @@ class CollectiveService {
    * This provides compatibility with the expected AIService interface
    */
   getEngines() {
-    console.warn('EnhancedAIService.getEngines() called - this is a compatibility stub');
-    
     // Return mock engines data for now
     return {
       ollama: {
@@ -719,8 +717,6 @@ class CollectiveService {
    * This provides compatibility with the expected AIService interface
    */
   async getInferenceEndpoint() {
-    console.warn('EnhancedAIService.getInferenceEndpoint() called - this is a compatibility stub');
-    
     const settings = this.getUserSettings();
     
     // Try to check if Ollama is available
@@ -757,8 +753,6 @@ class CollectiveService {
    * This provides compatibility with the expected AIService interface
    */
   async generateCharacterResponse(message, character, context = {}) {
-    console.warn('EnhancedAIService.generateCharacterResponse() called - this is a compatibility stub');
-    
     // Try to use Ollama if available
     try {
       const response = await fetch('http://localhost:11434/api/generate', {
@@ -772,7 +766,10 @@ class CollectiveService {
 
 ${context.systemPrompt || 'You are helpful and conversational.'}
 
-User: ${message}
+${context.chatHistory && context.chatHistory.length > 0 ? 
+  context.chatHistory.map(msg => 
+    `${msg.role === 'user' ? 'User' : 'Assistant'}: ${typeof msg.content === 'string' ? msg.content : msg.content?.text || '[message error]'}`
+  ).join('\n') + '\n' : ''}User: ${message}
 Assistant:`,
           stream: false,
           options: {
