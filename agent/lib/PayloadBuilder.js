@@ -92,7 +92,7 @@ export class PayloadBuilder {
 
             // System constraints and guidelines
             system_constraints: {
-                max_response_length: 200,
+                max_response_length: 600, // Increased from 200 for longer responses
                 available_actions: this.getAvailableActions(),
                 cooldown_actions: this.getCooldownActions(),
                 recent_content_hashes: worldState.duplicate_prevention?.recent_content_hashes?.length || 0
