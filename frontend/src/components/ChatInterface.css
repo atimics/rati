@@ -205,9 +205,6 @@
 }
 
 .input-container {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
   background: var(--rati-bg-primary, #0F0F23);
   border: 1px solid var(--rati-border, #3a3a52);
   border-radius: 12px;
@@ -217,6 +214,13 @@
 
 .input-container:focus-within {
   border-color: var(--rati-purple, #6B46C1);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
 }
 
 .input-container textarea {
@@ -230,10 +234,18 @@
   resize: none;
   font-family: inherit;
   padding: 8px;
+  min-height: 20px;
 }
 
 .input-container textarea::placeholder {
   color: #6b7280;
+}
+
+.input-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .send-button {
@@ -745,4 +757,148 @@
   color: var(--rati-text-primary);
   padding: 0.125rem 0.25rem;
   border-radius: 3px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .chat-interface {
+    height: 100vh;
+  }
+  
+  .chat-header {
+    padding: 0.75rem;
+  }
+  
+  .agent-info {
+    gap: 8px;
+  }
+  
+  .agent-details h3 {
+    font-size: 1rem;
+  }
+  
+  .agent-details p {
+    font-size: 0.8rem;
+  }
+  
+  .messages-container {
+    padding: 0.75rem;
+  }
+  
+  .message {
+    margin-bottom: 1rem;
+    gap: 8px;
+  }
+  
+  .message-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .message-bubble {
+    max-width: 85%;
+    padding: 10px 12px;
+  }
+  
+  .message-content {
+    font-size: 0.9rem;
+  }
+  
+  .message-content h1 { font-size: 1.3rem; }
+  .message-content h2 { font-size: 1.2rem; }
+  .message-content h3 { font-size: 1.1rem; }
+  
+  .inline-code {
+    font-size: 0.8em;
+    padding: 2px 4px;
+  }
+  
+  .code-block {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+  }
+  
+  .code-block code {
+    font-size: 0.8em;
+  }
+  
+  .markdown-table {
+    font-size: 0.8rem;
+  }
+  
+  .markdown-table th,
+  .markdown-table td {
+    padding: 0.5rem;
+  }
+  
+  .chat-input {
+    padding: 0.75rem;
+  }
+  
+  .input-container {
+    padding: 6px;
+  }
+  
+  .input-container textarea {
+    font-size: 0.9rem;
+    padding: 6px;
+  }
+  
+  .input-tools {
+    gap: 6px;
+  }
+  
+  .send-button {
+    min-width: 40px;
+    height: 40px;
+    padding: 6px 10px;
+    font-size: 1.1rem;
+  }
+  
+  .conversation-summary {
+    margin: 0.75rem;
+  }
+  
+  .summary-header {
+    padding: 0.75rem;
+  }
+  
+  .summary-content {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .message-bubble {
+    max-width: 90%;
+    padding: 8px 10px;
+  }
+  
+  .message-content {
+    font-size: 0.85rem;
+  }
+  
+  .input-container textarea {
+    font-size: 0.85rem;
+  }
+  
+  .send-button {
+    min-width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+  
+  .code-block {
+    padding: 0.5rem;
+    font-size: 0.75em;
+  }
+  
+  .markdown-table {
+    font-size: 0.75rem;
+  }
+  
+  .markdown-table th,
+  .markdown-table td {
+    padding: 0.375rem;
+  }
 }
