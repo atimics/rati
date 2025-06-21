@@ -2,10 +2,15 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeHighlight from 'rehype-highlight';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import AIService from '../services/AIService.js';
 import ConversationSummarizer from '../services/ConversationSummarizer.js';
 import AgentToolsService from '../services/AgentToolsService.js';
+import MarkdownHelper from './MarkdownHelper.jsx';
 import './ChatInterface.css';
+import 'highlight.js/styles/atom-one-dark.css';
 
 // Ollama configuration
 const OLLAMA_BASE_URL = 'http://localhost:11434';
@@ -309,6 +314,27 @@ const ChatInterface = ({ agentData }) => {
     }
   };
 
+  // Handle markdown insertion from helper
+  const handleMarkdownInsert = (syntax) => {
+    const textarea = document.querySelector('.chat-input textarea');
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = inputText;
+      
+      // Insert the syntax at cursor position or replace selected text
+      const newText = currentText.substring(0, start) + syntax + currentText.substring(end);
+      setInputText(newText);
+      
+      // Focus back to textarea and set cursor position
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = start + syntax.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    }
+  };
+
   // Debug: Log agentData to see what we're receiving
   // console.log('ChatInterface: agentData received:', agentData);
   
@@ -378,6 +404,7 @@ const ChatInterface = ({ agentData }) => {
               <div className="message-content">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkBreaks]}
+                  rehypePlugins={[rehypeHighlight]}
                   components={{
                     pre({ children, ...props }) {
                       return (
@@ -387,6 +414,33 @@ const ChatInterface = ({ agentData }) => {
                       );
                     },
                     code({ inline, children, className, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match ? match[1] : '';
+                      
+                      if (!inline && language) {
+                        return (
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language={language}
+                            PreTag="div"
+                            customStyle={{
+                              background: 'var(--rati-bg-secondary)',
+                              border: '1px solid var(--rati-border)',
+                              borderRadius: '8px',
+                              margin: '1rem 0',
+                              fontSize: '0.85em'
+                            }}
+                            codeTagProps={{
+                              style: {
+                                fontFamily: 'Monaco, Menlo, Consolas, Courier New, monospace'
+                              }
+                            }}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        );
+                      }
+                      
                       return inline ? (
                         <code className="inline-code" {...props}>
                           {children}
@@ -396,6 +450,47 @@ const ChatInterface = ({ agentData }) => {
                           {children}
                         </code>
                       );
+                    },
+                    h1({ children, ...props }) {
+                      return <h1 className="markdown-h1" {...props}>{children}</h1>;
+                    },
+                    h2({ children, ...props }) {
+                      return <h2 className="markdown-h2" {...props}>{children}</h2>;
+                    },
+                    h3({ children, ...props }) {
+                      return <h3 className="markdown-h3" {...props}>{children}</h3>;
+                    },
+                    blockquote({ children, ...props }) {
+                      return <blockquote className="markdown-blockquote" {...props}>{children}</blockquote>;
+                    },
+                    table({ children, ...props }) {
+                      return (
+                        <div className="table-wrapper">
+                          <table className="markdown-table" {...props}>{children}</table>
+                        </div>
+                      );
+                    },
+                    a({ href, children, ...props }) {
+                      return (
+                        <a 
+                          href={href} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="markdown-link" 
+                          {...props}
+                        >
+                          {children}
+                        </a>
+                      );
+                    },
+                    ul({ children, ...props }) {
+                      return <ul className="markdown-ul" {...props}>{children}</ul>;
+                    },
+                    ol({ children, ...props }) {
+                      return <ol className="markdown-ol" {...props}>{children}</ol>;
+                    },
+                    li({ children, ...props }) {
+                      return <li className="markdown-li" {...props}>{children}</li>;
                     }
                   }}
                 >
@@ -441,27 +536,32 @@ const ChatInterface = ({ agentData }) => {
 
       <div className="chat-input">
         <div className="input-container">
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Chat with your RATi agent..."
-            disabled={isLoading}
-            rows={1}
-            style={{
-              minHeight: '20px',
-              maxHeight: '120px',
-              resize: 'none',
-              overflow: 'auto'
-            }}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!inputText.trim() || isLoading}
-            className="send-button"
-          >
-            {isLoading ? '⏳' : '📤'}
-          </button>
+          <div className="input-wrapper">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Chat with your RATi agent... (Markdown supported)"
+              disabled={isLoading}
+              rows={1}
+              style={{
+                minHeight: '20px',
+                maxHeight: '120px',
+                resize: 'none',
+                overflow: 'auto'
+              }}
+            />
+            <div className="input-tools">
+              <MarkdownHelper onInsert={handleMarkdownInsert} />
+              <button
+                onClick={sendMessage}
+                disabled={!inputText.trim() || isLoading}
+                className="send-button"
+              >
+                {isLoading ? '⏳' : '📤'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

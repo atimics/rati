@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import CollectiveService from '../services/CollectiveService';
+import MemoryService from '../services/MemoryService';
+import ArweaveService from '../services/ArweaveService';
 import './AgentMemoryView.css';
 
 /**
@@ -102,6 +104,9 @@ const AgentMemoryView = () => {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all'); // all, conversations, thoughts, actions
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [lastProcessTime, setLastProcessTime] = useState(null);
+  const [arweaveStatus, setArweaveStatus] = useState('disconnected');
 
   // Get agent data
   const agent = {
@@ -115,13 +120,61 @@ const AgentMemoryView = () => {
       setLoading(true);
       setError(null);
 
-      // Load chat history
+      // Load chat history from CollectiveService
       const history = CollectiveService.getAgentJournal(agent.id);
       setChatHistory(Array.isArray(history) ? history : []);
 
-      // Generate memory entries from chat history
-      const entries = generateMemoryEntries(history);
-      setMemoryEntries(entries);
+      // Load actual memory entries from MemoryService
+      const actualMemories = MemoryService.getMemoryEntries(agent.id);
+      
+      // If we have chat history but no processed memories, suggest processing
+      if (history && history.length > 0 && actualMemories.length === 0) {
+        // Create a suggestion entry
+        const suggestionEntry = {
+          id: 'suggestion',
+          type: 'suggestion',
+          title: '💡 Process Chat History into Memories',
+          summary: `You have ${history.length} chat messages that could be processed into meaningful memories.`,
+          timestamp: new Date().toISOString(),
+          content: history,
+          keywords: ['processing', 'memories', 'chat'],
+          mood: 'hopeful'
+        };
+        setMemoryEntries([suggestionEntry]);
+      } else {
+        // Generate memory entries from both stored memories and legacy chat history
+        const combinedEntries = [];
+        
+        // Add actual processed memories
+        actualMemories.forEach(memory => {
+          combinedEntries.push({
+            id: memory.id,
+            type: memory.type,
+            title: memory.title,
+            summary: memory.summary,
+            timestamp: memory.timestamp,
+            content: memory,
+            keywords: memory.keywords || [],
+            mood: memory.mood || 'neutral'
+          });
+        });
+        
+        // Add legacy entries from chat history if no processed memories exist
+        if (actualMemories.length === 0) {
+          const legacyEntries = generateMemoryEntries(history);
+          combinedEntries.push(...legacyEntries);
+        }
+        
+        setMemoryEntries(combinedEntries);
+      }
+
+      // Check Arweave connection status
+      try {
+        await ArweaveService.connectWallet();
+        setArweaveStatus('connected');
+      } catch {
+        setArweaveStatus('disconnected');
+      }
 
     } catch (err) {
       console.error('Error loading memory data:', err);
@@ -171,12 +224,137 @@ const AgentMemoryView = () => {
   const clearMemory = async () => {
     if (window.confirm('Are you sure you want to clear all memory data? This action cannot be undone.')) {
       try {
+        // Clear memories from MemoryService
+        MemoryService.clearMemories(agent.id);
+        
+        // Clear chat history from CollectiveService
         CollectiveService.saveAgentJournal(agent.id, []);
+        
         setMemoryEntries([]);
         setChatHistory([]);
+        setLastProcessTime(null);
+        
+        alert('All memory data cleared successfully.');
+        
       } catch (err) {
         console.error('Error clearing memory:', err);
+        setError('Failed to clear memory data');
       }
+    }
+  };
+
+  // Process chat history into memories
+  const processIntoMemories = async () => {
+    if (!chatHistory || chatHistory.length === 0) {
+      setError('No chat history to process');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setError(null);
+
+      // Group messages into conversation chunks
+      const conversationChunks = groupMessagesIntoConversations(chatHistory);
+      
+      let processedCount = 0;
+      for (const chunk of conversationChunks) {
+        try {
+          await MemoryService.processConversationIntoMemory(agent.id, chunk);
+          processedCount++;
+        } catch (err) {
+          console.error('Failed to process conversation chunk:', err);
+        }
+      }
+
+      setLastProcessTime(new Date().toISOString());
+      
+      // Reload memory data to show new memories
+      await loadMemoryData();
+      
+      alert(`Successfully processed ${processedCount} conversations into memories!`);
+      
+    } catch (err) {
+      console.error('Error processing memories:', err);
+      setError('Failed to process chat history into memories');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Group messages into conversation chunks
+  const groupMessagesIntoConversations = (messages) => {
+    const chunks = [];
+    let currentChunk = [];
+    let lastMessageTime = null;
+
+    messages.forEach((message) => {
+      const messageTime = new Date(message.timestamp || Date.now());
+      
+      // If more than 30 minutes between messages, start new conversation
+      if (lastMessageTime && (messageTime - lastMessageTime) > 30 * 60 * 1000) {
+        if (currentChunk.length > 0) {
+          chunks.push([...currentChunk]);
+          currentChunk = [];
+        }
+      }
+      
+      currentChunk.push(message);
+      lastMessageTime = messageTime;
+      
+      // If chunk gets too large (20+ messages), close it
+      if (currentChunk.length >= 20) {
+        chunks.push([...currentChunk]);
+        currentChunk = [];
+      }
+    });
+    
+    // Add final chunk if it has content
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+    
+    return chunks.filter(chunk => chunk.length >= 2); // Only keep conversations with at least 2 messages
+  };
+
+  // Store memories to Arweave
+  const storeToArweave = async () => {
+    try {
+      setIsProcessing(true);
+      
+      const result = await MemoryService.storeMemoriesToArweave(agent.id);
+      
+      if (result.success) {
+        alert(`Memories stored to Arweave! Transaction ID: ${result.transactionId}`);
+        setArweaveStatus('stored');
+      } else {
+        throw new Error('Failed to store to Arweave');
+      }
+      
+    } catch (err) {
+      console.error('Error storing to Arweave:', err);
+      setError('Failed to store memories to Arweave. Make sure ArConnect is installed and connected.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Create journal from memories
+  const createJournal = async () => {
+    try {
+      setIsProcessing(true);
+      
+      const journalEntry = await MemoryService.createJournalFromMemories(agent.id);
+      
+      if (journalEntry) {
+        alert('Journal entry created successfully!');
+      }
+      
+    } catch (err) {
+      console.error('Error creating journal:', err);
+      setError('Failed to create journal entry');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -215,6 +393,30 @@ const AgentMemoryView = () => {
           <p>Explore {agent.name}'s thoughts, conversations, and experiences</p>
         </div>
         <div className="header-actions">
+          <button 
+            className="memory-action-btn process-btn" 
+            onClick={processIntoMemories}
+            disabled={isProcessing || chatHistory.length === 0}
+            title="Process chat history into memories"
+          >
+            {isProcessing ? '⏳' : '🧠'}
+          </button>
+          <button 
+            className="memory-action-btn journal-btn" 
+            onClick={createJournal}
+            disabled={isProcessing || memoryEntries.length === 0}
+            title="Create journal from memories"
+          >
+            📖
+          </button>
+          <button 
+            className="memory-action-btn arweave-btn" 
+            onClick={storeToArweave}
+            disabled={isProcessing || arweaveStatus === 'disconnected'}
+            title="Store memories to Arweave"
+          >
+            {arweaveStatus === 'connected' ? '💾' : '🔌'}
+          </button>
           <button className="refresh-btn" onClick={loadMemoryData} title="Refresh memory">
             🔄
           </button>
@@ -227,8 +429,8 @@ const AgentMemoryView = () => {
       {/* Stats */}
       <div className="memory-stats">
         <div className="stat-card">
-          <span className="stat-number">{memoryEntries.length}</span>
-          <span className="stat-label">Memory Entries</span>
+          <span className="stat-number">{memoryEntries.filter(e => e.type !== 'suggestion').length}</span>
+          <span className="stat-label">Processed Memories</span>
         </div>
         <div className="stat-card">
           <span className="stat-number">{chatHistory.length}</span>
@@ -241,6 +443,10 @@ const AgentMemoryView = () => {
         <div className="stat-card">
           <span className="stat-number">{memoryEntries.filter(e => e.type === 'thought').length}</span>
           <span className="stat-label">Thoughts</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-number">{arweaveStatus === 'connected' ? '✅' : '❌'}</span>
+          <span className="stat-label">Arweave Status</span>
         </div>
       </div>
 
@@ -295,8 +501,14 @@ const AgentMemoryView = () => {
             {filteredEntries.map((entry) => (
               <div 
                 key={entry.id} 
-                className={`memory-entry ${selectedEntry === entry.id ? 'selected' : ''}`}
-                onClick={() => setSelectedEntry(selectedEntry === entry.id ? null : entry.id)}
+                className={`memory-entry ${selectedEntry === entry.id ? 'selected' : ''} ${entry.type === 'suggestion' ? 'suggestion-entry' : ''}`}
+                onClick={() => {
+                  if (entry.type === 'suggestion') {
+                    processIntoMemories();
+                  } else {
+                    setSelectedEntry(selectedEntry === entry.id ? null : entry.id);
+                  }
+                }}
               >
                 <div className="entry-header">
                   <div className="entry-type">
@@ -319,9 +531,48 @@ const AgentMemoryView = () => {
                     </div>
                   </div>
                 </div>
-                {selectedEntry === entry.id && (
+                {selectedEntry === entry.id && entry.type !== 'suggestion' && (
                   <div className="entry-details">
-                    {entry.type === 'conversation' && Array.isArray(entry.content) ? (
+                    {entry.type === 'conversation' && entry.content && typeof entry.content === 'object' && entry.content.insights ? (
+                      <div className="processed-memory-details">
+                        <div className="memory-insights">
+                          <h5>Key Insights:</h5>
+                          <div className="insights-grid">
+                            {entry.content.insights.topics && (
+                              <div className="insight-section">
+                                <strong>Topics:</strong>
+                                <div className="topic-tags">
+                                  {entry.content.insights.topics.map(topic => (
+                                    <span key={topic} className="topic-tag">{topic}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {entry.content.insights.emotions && (
+                              <div className="insight-section">
+                                <strong>Emotions:</strong>
+                                <span className="emotion-list">{entry.content.insights.emotions.join(', ')}</span>
+                              </div>
+                            )}
+                            {entry.content.insights.learnings && (
+                              <div className="insight-section">
+                                <strong>Key Learnings:</strong>
+                                <ul className="learnings-list">
+                                  {entry.content.insights.learnings.map((learning, idx) => (
+                                    <li key={idx}>{learning}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="memory-metadata">
+                          <p><strong>Participants:</strong> {entry.content.participants?.join(', ')}</p>
+                          <p><strong>Importance:</strong> {Math.round((entry.content.importance || 0) * 100)}%</p>
+                          <p><strong>Message Count:</strong> {entry.content.messageCount}</p>
+                        </div>
+                      </div>
+                    ) : entry.type === 'conversation' && Array.isArray(entry.content) ? (
                       <div className="conversation-details">
                         {entry.content.map((message, index) => (
                           <div key={index} className={`message-preview ${message.role}`}>
@@ -332,7 +583,7 @@ const AgentMemoryView = () => {
                       </div>
                     ) : (
                       <div className="thought-details">
-                        <p>{entry.content}</p>
+                        <p>{typeof entry.content === 'string' ? entry.content : entry.summary}</p>
                       </div>
                     )}
                   </div>
