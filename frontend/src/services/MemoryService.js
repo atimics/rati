@@ -147,7 +147,7 @@ class MemoryService {
           options: {
             temperature: 0.5,
             top_p: 0.9,
-            max_tokens: 200
+            max_tokens: 500 // Increased from 200 for better insights
           }
         })
       });

@@ -66,7 +66,7 @@ class AIService {
     const {
       model = this.defaultModel,
       temperature = 0.7,
-      maxTokens = 500,
+      maxTokens = 1500, // Increased from 500 for longer responses
       topP = 0.9,
       systemPrompt = null
     } = options;
@@ -128,7 +128,7 @@ class AIService {
     const result = await this.generate(userMessage, {
       ...options,
       systemPrompt: systemPrompt,
-      maxTokens: options.maxTokens || 500
+      maxTokens: options.maxTokens || 1200 // Increased from 500
     });
 
     return result;
@@ -157,7 +157,7 @@ class AIService {
       const result = await this.generate(prompt, {
         ...options,
         temperature: options.temperature || 0.8,
-        maxTokens: options.maxTokens || 800
+        maxTokens: options.maxTokens || 2000 // Increased from 800 for journals
       });
 
       console.log('AIService: Generate result:', result);

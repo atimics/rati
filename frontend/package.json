@@ -26,6 +26,7 @@
     "arweave": "^1.15.7",
     "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
+    "highlight.js": "^11.11.1",
     "immer": "^10.1.1",
     "js-sha256": "^0.11.1",
     "process": "^0.11.10",
