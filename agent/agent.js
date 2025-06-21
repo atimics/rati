@@ -615,7 +615,7 @@ async function getLLMDecision(messages, recentMemories) {
     const requestOptions = {
       model: model,
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 300,
+      max_tokens: 800, // Increased from 300 for longer agent responses
       temperature: 0.7,
     };
 

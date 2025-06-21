@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import CollectiveService from '../services/CollectiveService';
 import MemoryService from '../services/MemoryService';
 import ArweaveService from '../services/ArweaveService';
+import AutoMemoryProcessor from './AutoMemoryProcessor';
+import MemoryInsightPanel from './MemoryInsightPanel';
 import './AgentMemoryView.css';
 
 /**
@@ -107,6 +109,7 @@ const AgentMemoryView = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastProcessTime, setLastProcessTime] = useState(null);
   const [arweaveStatus, setArweaveStatus] = useState('disconnected');
+  const [insightPanelVisible, setInsightPanelVisible] = useState(false);
 
   // Get agent data
   const agent = {
@@ -185,6 +188,13 @@ const AgentMemoryView = () => {
   }, [agent.id]);
 
   useEffect(() => {
+    loadMemoryData();
+  }, [loadMemoryData]);
+
+  // Callback for auto memory processor
+  const handleMemoryProcessed = useCallback((count) => {
+    console.log(`Auto-processed ${count} memory chunks`);
+    // Reload memory data to show new memories
     loadMemoryData();
   }, [loadMemoryData]);
 
@@ -483,6 +493,20 @@ const AgentMemoryView = () => {
           </button>
         </div>
       </div>
+
+      {/* Memory Insight Panel */}
+      <MemoryInsightPanel 
+        memoryEntries={memoryEntries}
+        isVisible={insightPanelVisible}
+        onToggle={() => setInsightPanelVisible(!insightPanelVisible)}
+      />
+
+      {/* Auto Memory Processor */}
+      <AutoMemoryProcessor 
+        agentId={agent.id}
+        chatHistory={chatHistory}
+        onMemoryProcessed={handleMemoryProcessed}
+      />
 
       {/* Memory Entries */}
       <div className="memory-content">
