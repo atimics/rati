@@ -332,6 +332,128 @@
   text-align: center;
 }
 
+/* Markdown formatting styles within messages */
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content h5,
+.message-content h6 {
+  margin: 0.5em 0 0.25em 0;
+  color: inherit;
+  font-weight: 600;
+}
+
+.message-content h1 { font-size: 1.5em; }
+.message-content h2 { font-size: 1.3em; }
+.message-content h3 { font-size: 1.1em; }
+.message-content h4 { font-size: 1em; }
+
+.message-content p {
+  margin: 0.5em 0;
+  line-height: 1.6;
+}
+
+.message-content p:first-child {
+  margin-top: 0;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.message-content li {
+  margin: 0.25em 0;
+}
+
+.message-content blockquote {
+  margin: 0.5em 0;
+  padding: 0.5em 0 0.5em 1em;
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+.message-content code {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.message-content pre {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.message-content pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.message-content strong,
+.message-content b {
+  font-weight: 600;
+  color: inherit;
+}
+
+.message-content em,
+.message-content i {
+  font-style: italic;
+}
+
+.message-content a {
+  color: var(--rati-purple-light);
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--rati-purple-rgb), 0.5);
+}
+
+.message-content a:hover {
+  text-decoration-color: var(--rati-purple-light);
+}
+
+.message-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+}
+
+.message-content th,
+.message-content td {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5em;
+  text-align: left;
+}
+
+.message-content th {
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.message-content hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 1em 0;
+}
+
+/* Syntax highlighting overrides for dark theme */
+.message-content .prism-code {
+  border-radius: 8px;
+  margin: 0.5em 0;
+}
+
 /* Webkit Scrollbar Styling */
 .chat-messages::-webkit-scrollbar {
   width: 6px;

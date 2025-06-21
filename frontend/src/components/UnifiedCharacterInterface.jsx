@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useWallet } from '../contexts/WalletContext';
 import collectiveService from '../services/CollectiveService';
 import enhancedAIService from '../services/EnhancedAIService';
@@ -624,7 +629,30 @@ Make the character unique, interesting, and suitable for participating in decent
                   {(chatHistory[selectedCharacter.id] || []).map(message => (
                     <div key={message.id} className={`message ${message.role}`}>
                       <div className="message-content">
-                        {message.content}
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={{
+                            code({ inline, className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              return !inline && match ? (
+                                <SyntaxHighlighter
+                                  style={oneDark}
+                                  language={match[1]}
+                                  PreTag="div"
+                                  {...props}
+                                >
+                                  {String(children).replace(/\n$/, '')}
+                                </SyntaxHighlighter>
+                              ) : (
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
                       </div>
                       <div className="message-meta">
                         {new Date(message.timestamp).toLocaleTimeString()}

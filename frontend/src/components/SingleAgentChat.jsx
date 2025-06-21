@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import collectiveService from '../services/CollectiveService';
 import enhancedAIService from '../services/EnhancedAIService';
 import toast from 'react-hot-toast';
@@ -298,7 +303,34 @@ const SingleAgentChat = () => {
               className={`message ${message.role} ${message.isError ? 'error' : ''}`}
             >
               <div className="message-content">
-                {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                {typeof message.content === 'string' ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={{
+                      code({ inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language={match[1]}
+                            PreTag="div"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      }
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  JSON.stringify(message.content)
+                )}
               </div>
               <div className="message-meta">
                 <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
