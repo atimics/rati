@@ -109,7 +109,7 @@ class MemoryService {
           options: {
             temperature: 0.3, // Lower temperature for more factual summaries
             top_p: 0.8,
-            max_tokens: 300
+            max_tokens: 600 // Increased from 300 for better summaries
           }
         })
       });
