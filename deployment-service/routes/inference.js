@@ -52,7 +52,6 @@ const callOllama = async (prompt, system = '', options = {}) => {
         stream: false,
         options: {
           temperature: options.temperature || 0.7,
-          max_tokens: options.max_tokens || 500,
           ...options
         }
       })
@@ -97,7 +96,6 @@ const callOpenAI = async (prompt, system = '', options = {}) => {
         model: config.model,
         messages,
         temperature: options.temperature || 0.7,
-        max_tokens: options.max_tokens || 500,
         ...options
       })
     });

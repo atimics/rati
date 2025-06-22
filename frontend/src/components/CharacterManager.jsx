@@ -104,7 +104,6 @@ Make the character unique, interesting, and suitable for participating in decent
         body: JSON.stringify({
           prompt: fullPrompt,
           system: 'You are a character creation assistant. Always respond with valid JSON only, no additional text.',
-          max_tokens: 800,
           temperature: 0.8
         })
       });

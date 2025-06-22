@@ -35,7 +35,6 @@ class ConversationSummarizer {
           options: {
             temperature: 0.3, // Lower temperature for more consistent summaries
             top_p: 0.9,
-            max_tokens: 200 // Keep summaries concise
           }
         })
       });

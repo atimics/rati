@@ -11,6 +11,7 @@
 import ArweaveService from './ArweaveService';
 import AgentJournalService from './AgentJournalService';
 import CollectiveService from './CollectiveService';
+import MemoryConsolidationService from './MemoryConsolidationService.js';
 
 class MemoryService {
   constructor() {
@@ -18,6 +19,7 @@ class MemoryService {
     this.model = 'gemma3';
     this.memoryThreshold = 10; // Create memory after N messages
     this.summaryThreshold = 20; // Create summary after N memories
+    this.consolidationService = new MemoryConsolidationService();
   }
 
   /**
@@ -34,11 +36,11 @@ class MemoryService {
         return { success: false, error: 'No messages to process' };
       }
 
-      // Create memory summary from conversation
-      const memorySummary = await this.createMemorySummary(messages);
+      // Create memory summary using enhanced method with fallbacks
+      const memorySummary = await this.createEnhancedMemorySummary(messages);
       
-      // Extract key insights and keywords
-      const insights = await this.extractInsights(messages);
+      // Extract key insights using enhanced method with fallbacks
+      const insights = await this.extractEnhancedInsights(messages);
       
       // Create memory entry
       const memoryEntry = {
@@ -109,7 +111,6 @@ class MemoryService {
           options: {
             temperature: 0.3, // Lower temperature for more factual summaries
             top_p: 0.8,
-            max_tokens: 600 // Increased from 300 for better summaries
           }
         })
       });
@@ -126,6 +127,83 @@ class MemoryService {
       // Fallback to simple summary
       return this.createSimpleSummary(messages);
     }
+  }
+
+  /**
+   * Enhanced memory summary creation with robust fallbacks
+   * @param {Array} messages - Chat messages to summarize
+   * @returns {Promise<string>} Summary with fallback support
+   */
+  async createEnhancedMemorySummary(messages) {
+    // Try multiple summarization strategies in order of preference
+    const strategies = [
+      () => this.createAISummary(messages),           // Primary: AI-based
+      () => this.createStructuredSummary(messages),   // Secondary: Rule-based structured
+      () => this.createSimpleSummary(messages)        // Fallback: Basic rule-based
+    ];
+    
+    for (const strategy of strategies) {
+      try {
+        const result = await strategy();
+        if (result && result.length > 10) { // Ensure we got a meaningful summary
+          return result;
+        }
+      } catch (error) {
+        console.warn('MemoryService: Summary strategy failed, trying next:', error.message);
+      }
+    }
+    
+    return `Conversation with ${messages.length} messages on ${new Date().toLocaleDateString()}`;
+  }
+
+  /**
+   * AI-based summary creation (rename existing method for clarity)
+   */
+  async createAISummary(messages) {
+    return this.createMemorySummary(messages);
+  }
+
+  /**
+   * Structured rule-based summary for when AI is unavailable
+   */
+  createStructuredSummary(messages) {
+    if (!messages || messages.length === 0) return 'Empty conversation';
+    
+    const participants = this.extractParticipants(messages);
+    const topics = this.extractTopics(messages);
+    const mood = this.analyzeMood(messages);
+    const duration = this.calculateDuration(messages);
+    const importance = this.calculateImportance(messages);
+    
+    let summary = `${participants.join(' and ')} had a ${mood} conversation`;
+    
+    if (topics.length > 0) {
+      summary += ` about ${topics.slice(0, 2).join(' and ')}`;
+    }
+    
+    summary += ` spanning ${messages.length} messages`;
+    
+    if (duration) {
+      summary += ` over ${duration}`;
+    }
+    
+    // Add key insights based on message patterns
+    const questions = messages.filter(m => m.content && m.content.includes('?')).length;
+    const longMessages = messages.filter(m => m.content && m.content.length > 200).length;
+    
+    if (questions > 2) {
+      summary += '. Discussion involved multiple questions and exploration of ideas';
+    }
+    
+    if (longMessages > 1) {
+      summary += '. Included detailed explanations and in-depth responses';
+    }
+    
+    if (importance > 0.7) {
+      summary += '. This was a particularly meaningful exchange';
+    }
+    
+    return summary + '.';
   }
 
   /**
@@ -147,7 +225,6 @@ class MemoryService {
           options: {
             temperature: 0.5,
             top_p: 0.9,
-            max_tokens: 500 // Increased from 200 for better insights
           }
         })
       });
@@ -178,6 +255,39 @@ class MemoryService {
         learnings: ['Unable to extract insights']
       };
     }
+  }
+
+  /**
+   * Enhanced insights extraction with fallbacks
+   */
+  async extractEnhancedInsights(messages) {
+    // Try AI extraction first
+    try {
+      const aiInsights = await this.extractInsights(messages);
+      if (aiInsights && aiInsights.topics && aiInsights.topics.length > 0) {
+        return aiInsights;
+      }
+    } catch (error) {
+      console.warn('MemoryService: AI insights extraction failed, using fallback:', error.message);
+    }
+    
+    // Fallback to rule-based extraction
+    return this.extractRuleBasedInsights(messages);
+  }
+
+  /**
+   * Rule-based insights extraction when AI is unavailable
+   */
+  extractRuleBasedInsights(messages) {
+    const topics = this.extractTopics(messages);
+    const emotions = this.extractEmotions(messages);
+    const learnings = this.extractKeyLearnings(messages);
+    
+    return {
+      topics: topics.slice(0, 5),
+      emotions: emotions.slice(0, 3),
+      learnings: learnings.slice(0, 3)
+    };
   }
 
   /**
@@ -699,6 +809,319 @@ JSON:`;
     } catch (error) {
       console.error('MemoryService: Failed to clear memories:', error);
       return false;
+    }
+  }
+
+  /**
+   * Find semantically relevant memories for current context
+   * @param {Array} currentMessages - Current conversation messages
+   * @param {Array} allMemories - All available memories
+   * @param {number} limit - Maximum number of memories to return
+   */
+  findRelevantMemories(currentMessages, allMemories, limit = 5) {
+    if (!allMemories || allMemories.length === 0) return [];
+    
+    // Extract key terms from current messages
+    const currentContext = currentMessages.map(m => m.content || m.data || '').join(' ').toLowerCase();
+    const currentKeywords = this.extractKeywords([{ content: currentContext }]);
+    
+    // Score memories by relevance
+    const scoredMemories = allMemories.map(memory => {
+      let relevanceScore = 0;
+      
+      // Keyword overlap scoring
+      const memoryKeywords = memory.keywords || [];
+      const keywordOverlap = currentKeywords.filter(k => 
+        memoryKeywords.some(mk => mk.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(mk.toLowerCase()))
+      );
+      relevanceScore += keywordOverlap.length * 2;
+      
+      // Topic similarity scoring
+      const memoryTopics = memory.insights?.topics || [];
+      const currentTopics = this.extractTopics([{ content: currentContext }]);
+      const topicOverlap = currentTopics.filter(t => 
+        memoryTopics.some(mt => mt.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(mt.toLowerCase()))
+      );
+      relevanceScore += topicOverlap.length * 3;
+      
+      // Recency scoring (more recent = higher score)
+      const memoryAge = Date.now() - new Date(memory.timestamp).getTime();
+      const daysSinceMemory = memoryAge / (1000 * 60 * 60 * 24);
+      relevanceScore += Math.max(0, 5 - (daysSinceMemory / 7)); // Decay over weeks
+      
+      // Importance scoring
+      relevanceScore += (memory.importance || 0) * 4;
+      
+      // Content similarity (basic string matching)
+      const memoryContent = (memory.summary || '').toLowerCase();
+      let contentMatches = 0;
+      currentKeywords.forEach(keyword => {
+        if (memoryContent.includes(keyword.toLowerCase())) {
+          contentMatches++;
+        }
+      });
+      relevanceScore += contentMatches;
+      
+      return { ...memory, relevanceScore };
+    });
+    
+    // Sort by relevance and return top results
+    return scoredMemories
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, limit)
+      .filter(m => m.relevanceScore > 0); // Only return memories with some relevance
+  }
+
+  /**
+   * Build enhanced memory context for AI decision making
+   * @param {Array} relevantMemories - Semantically relevant memories
+   */
+  buildEnhancedMemoryContext(relevantMemories) {
+    if (!relevantMemories || relevantMemories.length === 0) {
+      return 'No relevant memories found for current context.';
+    }
+    
+    // Group memories by topic for better organization
+    const memoryGroups = {};
+    relevantMemories.forEach(memory => {
+      const primaryTopic = memory.insights?.topics?.[0] || 'general';
+      if (!memoryGroups[primaryTopic]) {
+        memoryGroups[primaryTopic] = [];
+      }
+      memoryGroups[primaryTopic].push(memory);
+    });
+    
+    let contextString = 'RELEVANT MEMORY CONTEXT:\n';
+    
+    Object.entries(memoryGroups).forEach(([topic, memories]) => {
+      contextString += `\n📚 ${topic.toUpperCase()} MEMORIES:\n`;
+      memories.forEach((memory, index) => {
+        contextString += `${index + 1}. [${memory.mood}] ${memory.title}\n`;
+        contextString += `   Summary: ${memory.summary}\n`;
+        if (memory.insights?.learnings?.length > 0) {
+          contextString += `   Key Learning: ${memory.insights.learnings[0]}\n`;
+        }
+        contextString += `   Relevance: ${Math.round(memory.relevanceScore * 10)/10}/10\n`;
+      });
+    });
+    
+    // Add memory-based insights for the current situation
+    const dominantMoods = this.getDominantMoods(relevantMemories);
+    const commonTopics = this.aggregateTopics(relevantMemories);
+    
+    contextString += '\n🧠 MEMORY-BASED INSIGHTS:\n';
+    contextString += `- Conversation style tends toward: ${dominantMoods[0]?.mood || 'neutral'}\n`;
+    if (commonTopics.length > 0) {
+      contextString += `- Recurring discussion topics: ${commonTopics.slice(0, 3).map(t => t.topic).join(', ')}\n`;
+    }
+    
+    return contextString;
+  }
+
+  /**
+   * Get organized memory structure with hierarchy and consolidation
+   * @param {string} agentId - Agent identifier
+   * @param {Object} options - Organization options
+   */
+  getOrganizedMemories(agentId, options = {}) {
+    const {
+      enableConsolidation = false,
+      enableHierarchy = true,
+      maxMemories = 100
+    } = options;
+
+    try {
+      let memories = this.getMemoryEntries(agentId);
+      
+      // Limit memories for performance
+      if (memories.length > maxMemories) {
+        memories = memories.slice(-maxMemories);
+      }
+      
+      let result = { memories };
+      
+      // Apply consolidation if enabled
+      if (enableConsolidation && memories.length > 10) {
+        const consolidated = this.consolidationService.consolidateRedundantMemories(memories);
+        result.consolidatedMemories = consolidated.consolidatedMemories;
+        result.redundantGroups = consolidated.redundantGroups;
+        result.reductionRate = consolidated.reductionRate;
+        
+        console.log(`MemoryService: Consolidated ${memories.length} memories to ${consolidated.consolidatedMemories.length} (${Math.round(consolidated.reductionRate * 100)}% reduction)`);
+      }
+      
+      // Apply hierarchical organization if enabled
+      if (enableHierarchy) {
+        const memoriesToOrganize = result.consolidatedMemories || memories;
+        const hierarchy = this.consolidationService.organizeMemoriesHierarchically(memoriesToOrganize);
+        result.hierarchy = hierarchy;
+        
+        console.log(`MemoryService: Organized memories into ${Object.keys(hierarchy.topics).length} topics, ${hierarchy.clusters.length} clusters`);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('MemoryService: Failed to organize memories:', error);
+      return { 
+        memories: this.getMemoryEntries(agentId),
+        error: error.message 
+      };
+    }
+  }
+
+  /**
+   * Get memory insights and analytics
+   * @param {string} agentId - Agent identifier
+   */
+  getMemoryInsights(agentId) {
+    try {
+      const organized = this.getOrganizedMemories(agentId, { 
+        enableConsolidation: false, 
+        enableHierarchy: true 
+      });
+      
+      if (!organized.hierarchy) {
+        return { error: 'Failed to generate hierarchy for insights' };
+      }
+      
+      const insights = {
+        summary: organized.hierarchy.summary,
+        topTopics: organized.hierarchy.summary.topTopics,
+        recentActivity: organized.hierarchy.summary.recentActivity,
+        memoryDensity: organized.hierarchy.summary.memoryDensity,
+        clusters: organized.hierarchy.summary.clusterInsights,
+        trends: organized.hierarchy.timeline.trends
+      };
+      
+      return insights;
+      
+    } catch (error) {
+      console.error('MemoryService: Failed to generate memory insights:', error);
+      return { error: error.message };
+    }
+  }
+
+  /**
+   * Optimize memory storage by consolidating and pruning
+   * @param {string} agentId - Agent identifier
+   * @param {Object} options - Optimization options
+   */
+  async optimizeMemoryStorage(agentId, options = {}) {
+    const {
+      enableConsolidation = true,
+      maxMemories = 50,
+      minImportanceThreshold = 0.3
+    } = options;
+
+    try {
+      console.log('MemoryService: Starting memory optimization...');
+      
+      const originalMemories = this.getMemoryEntries(agentId);
+      let optimizedMemories = [...originalMemories];
+      
+      // Apply consolidation
+      if (enableConsolidation && originalMemories.length > 10) {
+        const consolidated = this.consolidationService.consolidateRedundantMemories(originalMemories);
+        optimizedMemories = consolidated.consolidatedMemories;
+        
+        console.log(`MemoryService: Consolidation reduced ${originalMemories.length} to ${optimizedMemories.length} memories`);
+      }
+      
+      // Prune low-importance memories if we're still over the limit
+      if (optimizedMemories.length > maxMemories) {
+        const importantMemories = optimizedMemories.filter(m => 
+          (m.importance || 0) >= minImportanceThreshold
+        );
+        
+        const recentMemories = optimizedMemories
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, maxMemories - importantMemories.length);
+        
+        // Combine important and recent, removing duplicates
+        const combinedIds = new Set();
+        optimizedMemories = [];
+        
+        [...importantMemories, ...recentMemories].forEach(memory => {
+          if (!combinedIds.has(memory.id)) {
+            optimizedMemories.push(memory);
+            combinedIds.add(memory.id);
+          }
+        });
+        
+        console.log(`MemoryService: Pruning reduced memories to ${optimizedMemories.length} (preserved ${importantMemories.length} important memories)`);
+      }
+      
+      // Save optimized memories
+      this.saveOptimizedMemories(agentId, optimizedMemories, originalMemories);
+      
+      return {
+        success: true,
+        originalCount: originalMemories.length,
+        optimizedCount: optimizedMemories.length,
+        reductionPercent: ((originalMemories.length - optimizedMemories.length) / originalMemories.length) * 100,
+        preservedImportant: optimizedMemories.filter(m => (m.importance || 0) >= minImportanceThreshold).length
+      };
+      
+    } catch (error) {
+      console.error('MemoryService: Memory optimization failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Save optimized memories with backup
+   */
+  saveOptimizedMemories(agentId, optimizedMemories, originalMemories) {
+    try {
+      // Create backup before optimization
+      const backupKey = `rati_memories_backup_${agentId}_${Date.now()}`;
+      localStorage.setItem(backupKey, JSON.stringify(originalMemories));
+      
+      // Save optimized memories
+      localStorage.setItem(`rati_memories_${agentId}`, JSON.stringify(optimizedMemories));
+      
+      // Keep only the 3 most recent backups
+      this.cleanupMemoryBackups(agentId);
+      
+      console.log('MemoryService: Optimized memories saved with backup');
+      
+    } catch (error) {
+      console.error('MemoryService: Failed to save optimized memories:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup old memory backups
+   */
+  cleanupMemoryBackups(agentId) {
+    try {
+      const backupKeys = [];
+      
+      // Find all backup keys for this agent
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`rati_memories_backup_${agentId}_`)) {
+          const timestamp = parseInt(key.split('_').pop());
+          backupKeys.push({ key, timestamp });
+        }
+      }
+      
+      // Sort by timestamp and keep only the 3 most recent
+      backupKeys.sort((a, b) => b.timestamp - a.timestamp);
+      const toDelete = backupKeys.slice(3);
+      
+      toDelete.forEach(({ key }) => {
+        localStorage.removeItem(key);
+      });
+      
+      if (toDelete.length > 0) {
+        console.log(`MemoryService: Cleaned up ${toDelete.length} old memory backups`);
+      }
+      
+    } catch (error) {
+      console.warn('MemoryService: Failed to cleanup memory backups:', error);
     }
   }
 }

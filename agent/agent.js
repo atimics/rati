@@ -6,12 +6,16 @@ import Arweave from 'arweave';
 import AIJournal from './services/ai-journal';
 import ConversationTracker from './services/conversation-tracker.js';
 import fetch from 'node-fetch';
+import AgentMemoryService from './lib/AgentMemoryService.js';
 
 // Deployment service configuration for journal context
 const DEPLOYMENT_SERVICE_URL = process.env.DEPLOYMENT_SERVICE_URL || 'http://deployment-service:3032';
 
 // Initialize conversation tracker
 const conversationTracker = new ConversationTracker(processId);
+
+// Initialize enhanced memory service
+const memoryService = new AgentMemoryService();
 
 // --- Journal Context Integration ---
 async function fetchJournalContext(processIdToUse = null) {
@@ -557,6 +561,25 @@ async function getLLMDecision(messages, recentMemories) {
   // Fetch journal context to enrich the AI's understanding
   const journalContext = await fetchJournalContext();
   
+  // Get enhanced memory context using the new memory service
+  let memoryContext = '';
+  try {
+    const memoryInfo = await memoryService.getRelevantMemoryContext(messages, recentMemories, {
+      maxMemories: 5,
+      minRelevanceScore: 0.2,
+      includeRecent: true,
+      preferHighImportance: true
+    });
+    
+    memoryContext = memoryInfo.contextString;
+    console.log(`🧠 Using ${memoryInfo.memories.length} relevant memories (${memoryInfo.totalMemoriesConsidered} total considered)`);
+    
+  } catch (error) {
+    console.warn('❌ Advanced memory integration failed, using fallback:', error.message);
+    // Fallback to simple memory context
+    memoryContext = `RECENT MEMORIES:\n${JSON.stringify(recentMemories.slice(-3), null, 2)}`;
+  }
+  
   let contextSection = '';
   if (journalContext) {
     contextSection = `
@@ -573,8 +596,7 @@ async function getLLMDecision(messages, recentMemories) {
     ${contextSection}
 
     ---
-    RECENT MEMORIES (for context and continuity):
-    ${JSON.stringify(recentMemories.slice(-3), null, 2)}
+    ${memoryContext}
     
     ---
     NEW MESSAGES RECEIVED:
@@ -582,7 +604,7 @@ async function getLLMDecision(messages, recentMemories) {
     
     ---
 
-    Based on your constitution, journal context, recent memories, and new messages, decide on one single action.
+    Based on your constitution, memory context, journal context, and new messages, decide on one single action.
     Consider your role as an archivist and community chronicler with access to the full RATi ecosystem context.
     
     Your available actions are:
@@ -596,7 +618,7 @@ async function getLLMDecision(messages, recentMemories) {
     - Keep responses under 200 characters unless creating formal summaries
     - Only propose something meaningful that adds value
     - Announce if you're creating a memory entry
-    - Use the journal context to provide richer, more informed responses
+    - Use the memory context to provide richer, more informed responses
 
     Respond with ONLY a JSON object:
     {
@@ -615,7 +637,6 @@ async function getLLMDecision(messages, recentMemories) {
     const requestOptions = {
       model: model,
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 800, // Increased from 300 for longer agent responses
       temperature: 0.7,
     };
 
@@ -1140,7 +1161,6 @@ class Agent {
       const requestOptions = {
         model: model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 300,
         temperature: 0.7,
       };
 

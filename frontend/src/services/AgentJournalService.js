@@ -38,7 +38,6 @@ class AgentJournalService {
           options: {
             temperature: 0.7, // Balanced creativity and consistency
             top_p: 0.9,
-            max_tokens: 800 // Allow for substantial journal entries
           }
         })
       });

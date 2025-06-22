@@ -368,6 +368,40 @@ const AgentMemoryView = () => {
     }
   };
 
+  // Optimize and consolidate memories
+  const optimizeMemories = async () => {
+    if (!memoryEntries || memoryEntries.length < 10) {
+      setError('Need at least 10 memories to optimize');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setError(null);
+
+      const result = await MemoryService.optimizeMemoryStorage(agent.id, {
+        enableConsolidation: true,
+        maxMemories: 50,
+        minImportanceThreshold: 0.3
+      });
+
+      if (result.success) {
+        alert(`Memory optimization complete! Reduced ${result.originalCount} memories to ${result.optimizedCount} (${Math.round(result.reductionPercent)}% reduction). Preserved ${result.preservedImportant} important memories.`);
+        
+        // Reload memory data to show optimized structure
+        await loadMemoryData();
+      } else {
+        throw new Error(result.error || 'Optimization failed');
+      }
+
+    } catch (err) {
+      console.error('Error optimizing memories:', err);
+      setError('Failed to optimize memories: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="memory-view">
@@ -427,6 +461,14 @@ const AgentMemoryView = () => {
           >
             {arweaveStatus === 'connected' ? '💾' : '🔌'}
           </button>
+          <button 
+            className="memory-action-btn optimize-btn" 
+            onClick={optimizeMemories}
+            disabled={isProcessing || memoryEntries.length < 10}
+            title="Optimize and consolidate memories"
+          >
+            🎯
+          </button>
           <button className="refresh-btn" onClick={loadMemoryData} title="Refresh memory">
             🔄
           </button>
@@ -458,6 +500,12 @@ const AgentMemoryView = () => {
           <span className="stat-number">{arweaveStatus === 'connected' ? '✅' : '❌'}</span>
           <span className="stat-label">Arweave Status</span>
         </div>
+        {lastProcessTime && (
+          <div className="stat-card">
+            <span className="stat-number">📅</span>
+            <span className="stat-label">Last Processed: {new Date(lastProcessTime).toLocaleDateString()}</span>
+          </div>
+        )}
       </div>
 
       {/* Controls */}

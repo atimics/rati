@@ -29,8 +29,7 @@ export async function generateCompletion(prompt, options = {}) {
     const response = await openai.chat.completions.create({
       model,
       messages,
-      max_tokens: maxTokens,
-      temperature,
+     temperature,
       stream: false
     });
 
@@ -80,7 +79,6 @@ export async function generateStreamingCompletion(prompt, options = {}) {
     const stream = await openai.chat.completions.create({
       model,
       messages,
-      max_tokens: maxTokens,
       temperature,
       stream: true
     });
