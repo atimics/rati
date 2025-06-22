@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react';
 import { useRatiStore } from '../store';
 import { useWallet } from '../contexts/WalletContext';
+import { useAO } from '../contexts/AOContext';
 import SingleAgentChat from './SingleAgentChat'; // Single agent chat interface
 import AgentMemoryView from './AgentMemoryView'; // Modern memory view
-import SettingsInterface from './SettingsInterface'; // Settings interface
+import AgentNetworkView from './AgentNetworkView'; // NEW: Network dashboard
 import ErrorBoundary from './ErrorBoundary'; // Error boundary for crash protection
 import './ModernApp.css';
 
@@ -27,6 +28,8 @@ const ModernApp = () => {
     getFormattedAddress,
     getFormattedBalance
   } = useWallet();
+  
+  const { aoStatus, processIds, isInitializing } = useAO();
 
   // Stabilize the setActiveTab function from the store
   const setActiveTab = useCallback((tab) => {
@@ -35,7 +38,7 @@ const ModernApp = () => {
   
   // Ensure we start with a sensible default tab
   React.useEffect(() => {
-    if (!['chat', 'memory', 'settings'].includes(activeTab)) {
+    if (!['chat', 'memory', 'network'].includes(activeTab)) {
       setActiveTab('chat');
     }
   }, [activeTab, setActiveTab]);
@@ -68,10 +71,10 @@ const ModernApp = () => {
               🧠 Memory
             </button>
             <button 
-              className={`nav-button ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settings')}
+              className={`nav-button ${activeTab === 'network' ? 'active' : ''}`}
+              onClick={() => setActiveTab('network')}
             >
-              ⚙️ Settings
+              🌐 Network
             </button>
             
             <div className="arweave-wallet-status">
@@ -142,9 +145,11 @@ const ModernApp = () => {
           </div>
         )}
         
-        {activeTab === 'settings' && (
+        {activeTab === 'network' && (
           <div className="tab-content">
-            <SettingsInterface />
+            <ErrorBoundary>
+              <AgentNetworkView />
+            </ErrorBoundary>
           </div>
         )}
       </main>

@@ -1,43 +1,46 @@
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
 import { WalletProvider } from './contexts/WalletProvider';
+import { AOProvider } from './contexts/AOProvider';
 import ModernApp from './components/ModernApp';
 import './App.css';
 
 /**
- * Root App Component - Modernized
+ * Root App Component - Modernized with AO Integration
  * 
- * Now provides modern context providers and clean architecture
- * while maintaining compatibility with existing components.
+ * Provides wallet and AO context providers for the entire application,
+ * enabling seamless blockchain integration throughout the component tree.
  */
 
 function App() {
   return (
     <WalletProvider>
-      <div className="app">
-        <ModernApp />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-              borderRadius: '10px',
-            },
-            success: {
+      <AOProvider>
+        <div className="app">
+          <ModernApp />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
               style: {
-                background: '#4CAF50',
+                background: '#363636',
+                color: '#fff',
+                borderRadius: '10px',
               },
-            },
-            error: {
-              style: {
-                background: '#f44336',
+              success: {
+                style: {
+                  background: '#4CAF50',
+                },
               },
-            },
-          }}
-        />
-      </div>
+              error: {
+                style: {
+                  background: '#f44336',
+                },
+              },
+            }}
+          />
+        </div>
+      </AOProvider>
     </WalletProvider>
   );
 }
