@@ -4,262 +4,254 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import collectiveService from '../services/CollectiveService';
-import enhancedAIService from '../services/EnhancedAIService';
+import { useAO } from '../contexts/AOContext';
+import { useWallet } from '../contexts/WalletContext';
 import toast from 'react-hot-toast';
 import './SingleAgentChat.css';
 
 /**
- * Single Agent Chat Interface
+ * Single Agent Chat Interface - AO Integrated
  * 
- * Simple chat interface focused on one specific agent.
- * Perfect for deployment as a single-page application on Arweave.
+ * Chat interface that communicates directly with the Avatar process on AO.
+ * Creates a true single-agent experience powered by blockchain state.
  */
 
 const SingleAgentChat = () => {
-  const [agent, setAgent] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isResponding, setIsResponding] = useState(false);
-  const [aiStatus, setAiStatus] = useState(null);
+  const [lastMessageId, setLastMessageId] = useState(null);
   
-  // Default agent ID for single-agent mode
-  const DEFAULT_AGENT_ID = 'default-rati-agent';
+  // AO and wallet integration
+  const { 
+    aoStatus, 
+    processIds, 
+    isInitializing, 
+    isReady,
+    sendChatMessage,
+    readInbox,
+    pollForMessages
+  } = useAO();
+  const { isConnected } = useWallet();
   
   // Refs
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+  const pollIntervalRef = useRef(null);
   
-  // Load default agent and AI status on mount
+  // Load chat history from Avatar process
   useEffect(() => {
-    // Create or load default agent
-    let defaultAgent = collectiveService.getCharacter(DEFAULT_AGENT_ID);
-    
-    if (!defaultAgent) {
-      // Create a default agent if none exists
-      defaultAgent = {
-        id: DEFAULT_AGENT_ID,
-        name: 'RATi Agent',
-        definition: {
-          bio: 'I am a helpful AI assistant powered by the RATi collective intelligence system.',
-          prompt: 'You are a helpful AI assistant. Respond conversationally and be helpful.',
-          description: 'Default RATi collective agent'
-        },
-        agentId: DEFAULT_AGENT_ID,
-        burnAddress: null,
-        balance: 0,
-        createdAt: new Date().toISOString()
-      };
-      
-      // Save the default agent
-      collectiveService.saveCharacter(defaultAgent);
+    if (isReady) {
+      loadChatHistory();
+      startPolling();
     }
     
-    setAgent(defaultAgent);
-    
-    // Load chat history from agent journal
-    loadChatHistory(defaultAgent.id);
-    
-    // Check AI service status
-    checkAIStatus();
-  }, []);
-
-  const loadChatHistory = (agentId) => {
-    try {
-      const journal = collectiveService.getAgentJournal(agentId);
-      if (journal && journal.entries && Array.isArray(journal.entries)) {
-        // Convert journal entries to chat messages
-        const chatMessages = journal.entries
-          .filter(entry => entry.type === 'chat' || entry.type === 'message')
-          .map(entry => {
-            let content = entry.content || entry.text;
-            
-            // Handle case where content might be an object (from old data)
-            if (typeof content === 'object' && content !== null) {
-              if (content.text) {
-                content = content.text;
-              } else {
-                content = JSON.stringify(content);
-              }
-            }
-            
-            return {
-              role: entry.role || (entry.isUser ? 'user' : 'assistant'),
-              content: String(content), // Ensure content is always a string
-              timestamp: entry.timestamp || new Date().toISOString(),
-              model: entry.model || 'unknown'
-            };
-          });
-        setChatHistory(chatMessages);
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
       }
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-      // Continue with empty history
-    }
-  };
+    };
+  }, [isReady]);
 
-  const saveChatHistory = (agentId, history) => {
-    try {
-      // Get existing journal or create new one
-      let journal = collectiveService.getAgentJournal(agentId) || {
-        agentId: agentId,
-        entries: [],
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString()
-      };
-      
-      // Convert chat history to journal entries
-      const journalEntries = history.map((message, index) => ({
-        id: `chat-${Date.now()}-${index}`,
-        type: 'chat',
-        role: message.role,
-        content: message.content,
-        timestamp: message.timestamp,
-        model: message.model
-      }));
-      
-      // Update journal with new entries
-      journal.entries = journalEntries;
-      journal.lastUpdated = new Date().toISOString();
-      
-      // Save to localStorage
-      collectiveService.saveAgentJournal(agentId, journal);
-    } catch (error) {
-      console.error('Error saving chat history:', error);
-    }
-  };
-
-  // Auto-scroll chat to bottom
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [chatHistory]);
 
-  const checkAIStatus = async () => {
+  const loadChatHistory = async () => {
     try {
-      const status = await enhancedAIService.getInferenceEndpoint();
-      // Map 'available' to 'connected' for UI consistency
-      setAiStatus({
-        ...status,
-        connected: status.available
-      });
+      const inbox = await readInbox();
+      const formattedHistory = formatInboxToChat(inbox);
+      setChatHistory(formattedHistory);
+      
+      if (formattedHistory.length > 0) {
+        setLastMessageId(formattedHistory[formattedHistory.length - 1].id);
+      }
     } catch (error) {
-      console.error('Error checking AI status:', error);
-      setAiStatus({ connected: false, available: false, error: 'AI service unavailable' });
+      console.error('Failed to load chat history:', error);
+      toast.error('Failed to load chat history');
     }
+  };
+
+  const startPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const newMessages = await pollForMessages(lastMessageId);
+        if (newMessages.length > 0) {
+          const formattedNew = formatInboxToChat(newMessages);
+          setChatHistory(prev => {
+            // Remove temporary "thinking" messages
+            const withoutTemp = prev.filter(msg => !msg.isTemporary);
+            return [...withoutTemp, ...formattedNew];
+          });
+          setLastMessageId(formattedNew[formattedNew.length - 1].id);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+  };
+
+  const formatInboxToChat = (inbox) => {
+    if (!Array.isArray(inbox)) return [];
+    
+    return inbox.map(msg => ({
+      id: msg.Id || msg.id || Date.now().toString(),
+      content: msg.Data || msg.content || '',
+      timestamp: msg.Timestamp || new Date().toISOString(),
+      role: msg.From === 'user' || msg.Action === 'user-message' ? 'user' : 'assistant',
+      sender: msg.From === 'user' ? 'You' : 'RATi Avatar'
+    }));
   };
 
   const handleSendMessage = async () => {
-    if (!chatInput.trim() || isResponding || !agent) return;
-    
+    if (!chatInput.trim() || isResponding || !isReady) {
+      return;
+    }
+
     const userMessage = {
-      role: 'user',
+      id: `user-${Date.now()}`,
       content: chatInput.trim(),
       timestamp: new Date().toISOString(),
-      model: aiStatus?.model || 'unknown'
+      role: 'user',
+      sender: 'You'
     };
-    
-    const newHistory = [...chatHistory, userMessage];
-    setChatHistory(newHistory);
-    setChatInput('');
+
+    // Add user message to history immediately
+    setChatHistory(prev => [...prev, userMessage]);
     setIsResponding(true);
-    
+    setChatInput('');
+
     try {
-      // Get AI response
-      const response = await enhancedAIService.generateCharacterResponse(
-        chatInput.trim(),
-        agent,
-        { 
-          systemPrompt: 'You are helpful and conversational.',
-          chatHistory: newHistory.slice(-6) // Last 6 messages for context (excluding current message)
-        }
-      );
+      // Send message to Avatar process
+      const messageId = await sendChatMessage(userMessage.content);
       
-      // Extract text from response object
-      const responseText = typeof response === 'string' ? response : response.text || 'No response generated';
-      const responseModel = typeof response === 'object' ? response.model : aiStatus?.model || 'unknown';
-      
-      const assistantMessage = {
-        role: 'assistant',
-        content: responseText,
+      // Add a temporary "thinking" message
+      const thinkingMessage = {
+        id: `thinking-${Date.now()}`,
+        content: '🤔 *Avatar is processing your message...*',
         timestamp: new Date().toISOString(),
-        model: responseModel
+        role: 'assistant',
+        sender: 'RATi Avatar',
+        isTemporary: true
       };
       
-      const updatedHistory = [...newHistory, assistantMessage];
-      setChatHistory(updatedHistory);
+      setChatHistory(prev => [...prev, thinkingMessage]);
       
-      // Save chat history to agent journal
-      saveChatHistory(agent.id, updatedHistory);
+      // The response will come through polling
+      toast.success('Message sent to Avatar');
       
     } catch (error) {
-      console.error('Error generating response:', error);
-      toast.error('Failed to generate response. Please try again.');
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message to Avatar');
       
-      // Add error message to chat
-      const errorMessage = {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date().toISOString(),
-        model: 'error',
-        isError: true
-      };
-      
-      const updatedHistory = [...newHistory, errorMessage];
-      setChatHistory(updatedHistory);
+      // Remove user message on error
+      setChatHistory(prev => prev.filter(msg => msg.id !== userMessage.id));
     } finally {
       setIsResponding(false);
-      // Focus input after response
-      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
-  const handleInputKeyPress = (e) => {
+  const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
+  const scrollToBottom = () => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const clearChatHistory = () => {
     setChatHistory([]);
-    if (agent) {
-      saveChatHistory(agent.id, []);
-    }
+    setLastMessageId(null);
     toast.success('Chat history cleared');
   };
 
-  if (!agent) {
+  // Connection states
+  if (!isConnected) {
     return (
-      <div className="single-agent-chat">
-        <div className="loading-state">
-          <h3>Loading Agent...</h3>
-          <p>Setting up your AI companion...</p>
+      <div className="chat-container">
+        <div className="connection-prompt">
+          <h3>🔐 Wallet Not Connected</h3>
+          <p>Please connect your Arweave wallet to chat with your Avatar</p>
+          <div className="help-text">
+            <p>You need to connect your wallet to:</p>
+            <ul>
+              <li>Send messages to your Avatar process</li>
+              <li>Access your chat history on the blockchain</li>
+              <li>Interact with the AO ecosystem</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isInitializing) {
+    return (
+      <div className="chat-container">
+        <div className="connection-prompt">
+          <h3>🔗 Connecting to AO</h3>
+          <p>Initializing connection to your Avatar process...</p>
+          {processIds.avatar && (
+            <p className="process-id">Avatar: {processIds.avatar.substring(0, 12)}...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isReady) {
+    return (
+      <div className="chat-container">
+        <div className="connection-prompt">
+          <h3>⚠️ AO Connection Issue</h3>
+          <p>Unable to connect to your Avatar process</p>
+          <div className="status-info">
+            <p><strong>Status:</strong> {aoStatus}</p>
+            {processIds.avatar ? (
+              <p><strong>Avatar Process:</strong> {processIds.avatar.substring(0, 12)}...</p>
+            ) : (
+              <p><strong>Error:</strong> No Avatar process configured</p>
+            )}
+          </div>
+          <div className="help-text">
+            <p>Please ensure:</p>
+            <ul>
+              <li>Your processes are deployed correctly</li>
+              <li>Your wallet has sufficient AR balance</li>
+              <li>The deployment service is running</li>
+            </ul>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="single-agent-chat">
-      {/* Chat Header */}
+    <div className="chat-container">
+      {/* Header */}
       <div className="chat-header">
         <div className="agent-info">
           <div className="agent-avatar">
-            {agent.name.charAt(0).toUpperCase()}
+            <div className="avatar-circle">
+              🤖
+            </div>
           </div>
           <div className="agent-details">
-            <h3>{agent.name}</h3>
-            <p>{agent.bio}</p>
-            <div className="ai-status">
-              {aiStatus?.connected ? (
-                <span className="status-connected">
-                  ● AI Ready ({aiStatus.model || 'unknown'})
-                </span>
-              ) : (
-                <span className="status-disconnected">
-                  ● AI Disconnected
-                </span>
-              )}
+            <h3>RATi Avatar</h3>
+            <div className="status-indicators">
+              <span className={`status-indicator ${aoStatus === 'connected' ? 'connected' : 'disconnected'}`}>
+                ● AO {aoStatus === 'connected' ? 'Connected' : 'Disconnected'}
+              </span>
             </div>
           </div>
         </div>
@@ -273,8 +265,8 @@ const SingleAgentChat = () => {
           </button>
           <button 
             className="refresh-btn"
-            onClick={checkAIStatus}
-            title="Refresh AI status"
+            onClick={loadChatHistory}
+            title="Refresh chat history"
           >
             🔄
           </button>
@@ -286,12 +278,21 @@ const SingleAgentChat = () => {
         {chatHistory.length === 0 ? (
           <div className="welcome-message">
             <div className="welcome-content">
-              <h4>Welcome to {agent.name}!</h4>
-              <p>{agent.bio}</p>
-              <div className="agent-traits">
-                {agent.traits?.map((trait, index) => (
-                  <span key={index} className="trait-badge">{trait}</span>
-                ))}
+              <h4>Welcome to your RATi Avatar!</h4>
+              <p>Your Avatar is powered by AO processes and stores conversations on the blockchain.</p>
+              <div className="features">
+                <div className="feature">
+                  <span className="feature-icon">🔗</span>
+                  <span>On-chain persistence</span>
+                </div>
+                <div className="feature">
+                  <span className="feature-icon">🤖</span>
+                  <span>AI-powered responses</span>
+                </div>
+                <div className="feature">
+                  <span className="feature-icon">🌐</span>
+                  <span>Decentralized network</span>
+                </div>
               </div>
               <p className="start-prompt">Start a conversation below...</p>
             </div>
@@ -299,55 +300,41 @@ const SingleAgentChat = () => {
         ) : (
           chatHistory.map((message, index) => (
             <div 
-              key={index} 
-              className={`message ${message.role} ${message.isError ? 'error' : ''}`}
+              key={message.id || index} 
+              className={`message ${message.role} ${message.isTemporary ? 'temporary' : ''}`}
             >
               <div className="message-content">
-                {typeof message.content === 'string' ? (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={{
-                      code({ inline, className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || '');
-                        return !inline && match ? (
-                          <SyntaxHighlighter
-                            style={oneDark}
-                            language={match[1]}
-                            PreTag="div"
-                            {...props}
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        );
-                      }
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
-                ) : (
-                  JSON.stringify(message.content)
-                )}
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  components={{
+                    code({ inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={oneDark}
+                          language={match[1]}
+                          PreTag="div"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
               </div>
               <div className="message-meta">
                 <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
-                {message.model && message.model !== 'unknown' && (
-                  <span className="model-tag">{message.model}</span>
-                )}
+                <span className="sender">{message.sender}</span>
               </div>
             </div>
           ))
-        )}
-        
-        {isResponding && (
-          <div className="message assistant typing">
-            <div className="message-content">
-              {agent.name} is thinking...
-            </div>
-          </div>
         )}
         
         <div ref={chatEndRef} />
@@ -360,9 +347,9 @@ const SingleAgentChat = () => {
             ref={inputRef}
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={handleInputKeyPress}
-            placeholder={`Chat with ${agent.name}...`}
-            disabled={isResponding || !aiStatus?.connected}
+            onKeyPress={handleKeyPress}
+            placeholder="Chat with your Avatar..."
+            disabled={isResponding || !isReady}
             rows={1}
             style={{
               minHeight: '50px',
@@ -374,14 +361,14 @@ const SingleAgentChat = () => {
           <button 
             className="send-btn"
             onClick={handleSendMessage}
-            disabled={!chatInput.trim() || isResponding || !aiStatus?.connected}
+            disabled={!chatInput.trim() || isResponding || !isReady}
           >
             {isResponding ? '⏳' : '➤'}
           </button>
         </div>
-        {!aiStatus?.connected && (
+        {!isReady && (
           <div className="connection-warning">
-            AI service is not available. Please check your connection.
+            AO service is not available. Please check your connection.
           </div>
         )}
       </div>
