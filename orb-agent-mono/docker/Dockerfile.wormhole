@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+# Install dependencies for Wormhole local development
+RUN apk add --no-cache curl bash git python3 make g++ build-base
+
+WORKDIR /app
+
+# Install Wormhole SDK and dependencies
+RUN npm init -y && \
+    npm install @certusone/wormhole-sdk ethers@5.7.2 express cors
+
+# Copy the service file
+COPY docker/wormhole-dev-service.js .
+
+EXPOSE 7070 7071 8999
+
+CMD ["node", "wormhole-dev-service.js"]

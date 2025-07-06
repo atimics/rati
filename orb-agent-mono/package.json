@@ -1,0 +1,91 @@
+{
+  "name": "orb-agent-mono",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-chain Agent NFT system transforming Orbs into AI Agents",
+  "keywords": ["blockchain", "nft", "cross-chain", "wormhole", "solana", "ethereum", "ai"],
+  "author": "Orb Agents Team",
+  "license": "MIT",
+  "workspaces": [
+    "scripts",
+    "web-frame"
+  ],
+  "scripts": {
+    "dev": "docker compose -f docker/compose.dev.yml up",
+    "dev:build": "docker compose -f docker/compose.dev.yml build",
+    "dev:down": "docker compose -f docker/compose.dev.yml down -v",
+    "dev:logs": "docker compose -f docker/compose.dev.yml logs -f",
+    "dev:restart": "pnpm dev:down && pnpm dev",
+    
+    "build": "pnpm -r build",
+    "test": "pnpm test:scripts && pnpm test:contracts && pnpm test:web",
+    "test:scripts": "pnpm -r --filter scripts test",
+    "test:contracts": "pnpm test:solana && pnpm test:evm",
+    "test:solana": "docker compose -f docker/compose.dev.yml exec solana bash -c 'cd contracts/solana-forge && anchor test'",
+    "test:evm": "docker compose -f docker/compose.dev.yml exec evm bash -c 'cd contracts/evm-receiver && forge test'",
+    "test:web": "pnpm -r --filter web-frame test",
+    "test:e2e": "docker compose -f docker/compose.dev.yml exec node ./scripts/e2e.sh",
+    "test:all": "pnpm test && pnpm test:e2e",
+    
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "type-check": "pnpm -r type-check",
+    
+    "deploy:contracts": "pnpm deploy:solana && pnpm deploy:evm",
+    "deploy:solana": "docker compose -f docker/compose.dev.yml exec solana bash -c 'cd contracts/solana-forge && anchor build && anchor deploy'",
+    "deploy:evm": "docker compose -f docker/compose.dev.yml exec evm bash -c 'cd contracts/evm-receiver && forge script script/Deploy.s.sol --broadcast'",
+    
+    "gen:agents": "pnpm -r --filter scripts gen-agents",
+    "upload:bundlr": "pnpm -r --filter scripts upload-bundlr",
+    "publish:csv": "pnpm -r --filter scripts publish-csv",
+    "pipeline:full": "pnpm gen:agents && pnpm upload:bundlr && pnpm publish:csv",
+    
+    "clean": "pnpm -r clean && pnpm dev:down",
+    "reset": "pnpm clean && pnpm install && pnpm dev:build",
+    
+    "security:audit": "pnpm audit && docker compose -f docker/compose.dev.yml exec solana bash -c 'cd contracts/solana-forge && cargo audit'",
+    "security:slither": "docker compose -f docker/compose.dev.yml exec evm bash -c 'cd contracts/evm-receiver && slither .'",
+    
+    "docs:build": "echo 'Building documentation...'",
+    "docs:serve": "echo 'Serving documentation...'",
+    
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "eslint": "^8.56.0",
+    "husky": "^9.0.10",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.1",
+  "lint-staged": {
+    "*.{js,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.rs": [
+      "rustfmt"
+    ],
+    "*.sol": [
+      "forge fmt"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orb-agents/orb-agent-mono"
+  },
+  "bugs": {
+    "url": "https://github.com/orb-agents/orb-agent-mono/issues"
+  },
+  "homepage": "https://orb-agents.xyz"
+}

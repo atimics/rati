@@ -1,0 +1,121 @@
+version: "3.9"
+
+services:
+  solana:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.anchor
+    platform: linux/amd64
+    container_name: orb-solana
+    ports:
+      - "8899:8899"
+      - "8900:8900"
+    volumes:
+      - ../contracts/solana-forge:/workspace/contracts/solana-forge
+      - solana-data:/root/.config/solana
+    command: solana-test-validator -r --quiet
+    healthcheck:
+      test: ["CMD", "solana", "cluster-version"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  wormhole:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.wormhole
+    platform: linux/amd64
+    container_name: orb-wormhole
+    environment:
+      - DEVNET_PRIVATE_KEY=/keys/guardian.key
+      - SOLANA_RPC=http://solana:8899
+      - ETH_RPC=http://evm:8545
+    volumes:
+      - wormhole-keys:/keys
+    ports:
+      - "7070:7070"
+      - "7071:7071"
+      - "8999:8999"
+    depends_on:
+      solana:
+        condition: service_healthy
+      evm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7071/v1/heartbeats"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  evm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.foundry
+    platform: linux/amd64
+    container_name: orb-evm
+    ports:
+      - "8545:8545"
+    environment:
+      - FORK_URL=${INFURA_URL:-https://base-mainnet.infura.io/v3/YOUR_KEY}
+    command: >
+      anvil 
+      --host 0.0.0.0 
+      --port 8545 
+      --block-time 1
+      --fork-url ${FORK_URL}
+      --fork-block-number 17000000
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  node:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.node
+    platform: linux/amd64
+    container_name: orb-node
+    volumes:
+      - ..:/workspace
+      - node_modules:/workspace/node_modules
+      - pnpm-store:/root/.pnpm-store
+    environment:
+      - SOLANA_RPC=http://solana:8899
+      - EVM_RPC=http://evm:8545
+      - WORMHOLE_RPC=http://wormhole:7071
+      - BUNDLR_PRIVATE_KEY=${BUNDLR_PRIVATE_KEY}
+      - MONGODB_URI=${MONGODB_URI}
+    ports:
+      - "5173:5173"  # Vite dev server
+    depends_on:
+      - solana
+      - evm
+      - wormhole
+    command: sleep infinity
+
+  # Optional: MongoDB for local development
+  mongo:
+    image: mongo:7.0
+    container_name: orb-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=localdev
+      - MONGO_INITDB_DATABASE=orb_agents
+    volumes:
+      - mongo-data:/data/db
+    profiles:
+      - with-mongo
+
+volumes:
+  solana-data:
+  wormhole-keys:
+  node_modules:
+  pnpm-store:
+  mongo-data:
+
+networks:
+  default:
+    name: orb-network

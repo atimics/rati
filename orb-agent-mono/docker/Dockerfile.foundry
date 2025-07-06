@@ -1,0 +1,23 @@
+FROM ghcr.io/foundry-rs/foundry:latest
+
+# Install Node.js - detect package manager
+RUN if command -v apk > /dev/null 2>&1; then \
+        apk update && apk add --no-cache nodejs npm; \
+    elif command -v apt-get > /dev/null 2>&1; then \
+        apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*; \
+    elif command -v yum > /dev/null 2>&1; then \
+        yum install -y nodejs npm && yum clean all; \
+    else \
+        echo "Package manager not found" && exit 1; \
+    fi
+
+WORKDIR /workspace
+
+# Install anvil dependencies
+COPY contracts/evm-receiver/package*.json ./contracts/evm-receiver/
+RUN cd contracts/evm-receiver && npm ci --only=production
+
+EXPOSE 8545
+
+# Default to running anvil
+CMD ["anvil", "--host", "0.0.0.0", "--port", "8545", "--block-time", "1"]

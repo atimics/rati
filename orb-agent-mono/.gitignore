@@ -1,0 +1,291 @@
+# Orb Agent Mono - Comprehensive .gitignore
+
+# ================================
+# Node.js / JavaScript / TypeScript
+# ================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+.nyc_output
+
+# ESLint cache
+.eslintcache
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ================================
+# Rust / Anchor (Solana)
+# ================================
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Anchor specific
+.anchor/
+test-ledger/
+.solana/
+
+# Solana keypairs (SECURITY CRITICAL)
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!jest.config.json
+!eslint.config.json
+!anchor.toml
+!solana-test-validator.json
+
+# Solana program deployments
+deploy/
+programs/*/target/
+
+# ================================
+# Foundry / Solidity (EVM)
+# ================================
+cache/
+out/
+broadcast/
+lib/
+
+# Foundry specific
+forge-cache/
+foundry.toml.backup
+
+# Hardhat (if used)
+artifacts/
+typechain/
+typechain-types/
+
+# ================================
+# Docker
+# ================================
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# ================================
+# IDE / Editor
+# ================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ================================
+# OS generated files
+# ================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ================================
+# Logs
+# ================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ================================
+# Security / Secrets
+# ================================
+# Keypairs and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+keypair.json
+id.json
+validator-keypair.json
+
+# Wallet files
+wallet.json
+wallet-*.json
+!wallet.example.json
+
+# Environment files with secrets
+.env.*
+!.env.example
+
+# Bundlr keys
+bundlr-keypair.json
+
+# MongoDB connection strings
+mongodb.env
+
+# API keys
+api-keys.json
+secrets.json
+
+# ================================
+# Temporary files
+# ================================
+tmp/
+temp/
+.tmp/
+.temp/
+
+# ================================
+# Database
+# ================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ================================
+# Frontend specific
+# ================================
+# Vite
+.vite/
+
+# React
+.react/
+
+# TypeScript
+*.tsbuildinfo
+
+# Storybook
+.out
+.storybook-out
+
+# ================================
+# Testing
+# ================================
+coverage/
+.coverage/
+junit.xml
+test-results/
+test-report.xml
+
+# ================================
+# Deployment
+# ================================
+.vercel/
+.netlify/
+.firebase/
+
+# ================================
+# Monitoring
+# ================================
+.sentryclirc
+sentry.properties
+
+# ================================
+# Package managers
+# ================================
+.yarn/
+.pnp.*
+
+# ================================
+# Build tools
+# ================================
+.parcel-cache/
+.cache/
+.turbo/
+
+# ================================
+# Wormhole specific
+# ================================
+wormhole-chain-info/
+guardian-set.json
+
+# ================================
+# Arweave / Bundlr
+# ================================
+arweave-keyfile.json
+bundlr-wallet.json
+
+# ================================
+# Performance / Profiling
+# ================================
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+
+# ================================
+# Documentation build
+# ================================
+docs/build/
+site/
+
+# ================================
+# Backup files
+# ================================
+*.bak
+*.backup
+*.old
+*.orig
+
+# ================================
+# Lock files (include only npm)
+# ================================
+yarn.lock
+pnpm-lock.yaml
+
+# ================================
+# Custom project specific
+# ================================
+# Add any project-specific ignores here
