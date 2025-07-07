@@ -1,13 +1,15 @@
 FROM node:20-alpine
 
-# Install dependencies for Wormhole local development
-RUN apk add --no-cache curl bash git python3 make g++ build-base
+# Install minimal dependencies
+RUN apk add --no-cache curl bash
 
 WORKDIR /app
 
-# Install Wormhole SDK and dependencies
-RUN npm init -y && \
-    npm install @certusone/wormhole-sdk ethers@5.7.2 express cors
+# Create a minimal package.json
+RUN echo '{"name":"wormhole-mock","version":"1.0.0"}' > package.json
+
+# Install only essential dependencies
+RUN npm install express cors
 
 # Copy the service file
 COPY docker/wormhole-dev-service.js .

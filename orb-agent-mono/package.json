@@ -46,6 +46,9 @@
     
     "security:audit": "pnpm audit && docker compose -f docker/compose.dev.yml exec solana bash -c 'cd contracts/solana-forge && cargo audit'",
     "security:slither": "docker compose -f docker/compose.dev.yml exec evm bash -c 'cd contracts/evm-receiver && slither .'",
+    "security:secrets": "node scripts/scan-secrets.js",
+    "security:check": "./check-system.sh",
+    "security:all": "pnpm security:check && pnpm security:secrets && pnpm security:audit",
     
     "docs:build": "echo 'Building documentation...'",
     "docs:serve": "echo 'Serving documentation...'",
@@ -54,7 +57,14 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
+    "@types/express": "^4.17.17",
+    "@types/cors": "^2.8.13",
+    "cors": "^2.8.5",
     "eslint": "^8.56.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.10.0",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.0.0",
     "husky": "^9.0.10",
     "lint-staged": "^15.2.0",
     "prettier": "^3.2.4",

@@ -227,11 +227,33 @@ fi
 echo -e "\n${BLUE}🔒 Security${NC}"
 echo "==========="
 
-# Check for exposed private keys (basic check)
-if grep -r "private.*key.*=" . --include="*.ts" --include="*.js" --include="*.json" 2>/dev/null | grep -v "example" | grep -v "test" | grep -v "mock" >/dev/null; then
-    check_status 1 "Potential private keys found in code"
+# Enhanced secret detection patterns
+SECRET_PATTERNS=(
+    "private.*key.*="
+    "secret.*="
+    "password.*="
+    "bearer.*token"
+    "api.*key.*="
+    "access.*token.*="
+    "auth.*token.*="
+    "priv.*key.*="
+    "mnemonic.*="
+    "seed.*phrase.*="
+)
+
+SECRETS_FOUND=false
+for pattern in "${SECRET_PATTERNS[@]}"; do
+    if grep -r -i "$pattern" . --include="*.ts" --include="*.js" --include="*.json" --include="*.env*" 2>/dev/null | grep -v "example" | grep -v "test" | grep -v "mock" | grep -v ".gitignore" | grep -v "check-system.sh" >/dev/null; then
+        SECRETS_FOUND=true
+        echo -e "${RED}⚠️  Pattern found: $pattern${NC}"
+        grep -r -i "$pattern" . --include="*.ts" --include="*.js" --include="*.json" --include="*.env*" 2>/dev/null | grep -v "example" | grep -v "test" | grep -v "mock" | grep -v ".gitignore" | grep -v "check-system.sh" | head -3
+    fi
+done
+
+if [ "$SECRETS_FOUND" = true ]; then
+    check_status 1 "Potential secrets found in code"
 else
-    check_status 0 "No obvious private keys in code"
+    check_status 0 "No obvious secrets in code"
 fi
 
 # Check if .env files are in .gitignore

@@ -13,7 +13,8 @@ WORMHOLE_RPC="http://wormhole:7071"
 
 # Test keypairs (generated for testing)
 TEST_KEYPAIR="/tmp/test-keypair.json"
-TEST_PRIVATE_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+# Use environment variable or generate a test key (Hardhat test account #0)
+TEST_PRIVATE_KEY="${TEST_PRIVATE_KEY:-0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d}"
 
 echo "📋 Test Configuration:"
 echo "  Solana RPC: $SOLANA_RPC"
